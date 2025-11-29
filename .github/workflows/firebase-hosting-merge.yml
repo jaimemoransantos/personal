@@ -24,13 +24,25 @@ jobs:
         working-directory: functions
         run: npm ci
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+      # Setup Google Cloud SDK using the Firebase service account JSON
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: personal-67927
+          service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PERSONAL_67927 }}
+          export_default_credentials: true
 
-      - name: Deploy functions
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PERSONAL_67927 }}
-        run: firebase deploy --only functions --project personal-67927
+      # Deploy your Firebase Function with gcloud
+      - name: Deploy helloWorld function
+        working-directory: functions
+        run: |
+          gcloud functions deploy helloWorld \
+            --entry-point=helloWorld \
+            --source=. \
+            --runtime=nodejs20 \
+            --trigger-http \
+            --region=us-central1 \
+            --allow-unauthenticated
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
