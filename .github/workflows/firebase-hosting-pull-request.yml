@@ -21,6 +21,15 @@ jobs:
       - name: Build
         working-directory: front
         run: npm run build
+              - name: Install functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Deploy functions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PERSONAL_67927 }}
+        run: firebase deploy --only functions --project personal-67927
+        
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
