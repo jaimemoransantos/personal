@@ -1,0 +1,40 @@
+name: Deploy Firebase Functions on Merge
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy_functions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: personal-67927
+          service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PERSONAL_67927 }}
+          export_default_credentials: true
+
+      - name: Activate service account
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PERSONAL_67927 }}' > key.json
+          gcloud auth activate-service-account --key-file=key.json
+
+      - name: Deploy helloWorld function
+        working-directory: functions
+        run: |
+          gcloud functions deploy helloWorld \
+            --entry-point=helloWorld \
+            --source=. \
+            --runtime=nodejs20 \
+            --trigger-http \
+            --region=us-central1 \
+            --allow-unauthenticated
