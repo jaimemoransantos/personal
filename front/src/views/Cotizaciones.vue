@@ -134,9 +134,12 @@
               <input
                 v-model.number="item.quantity"
                 type="number"
-                min="1"
+                min="0.01"
+                max="999999.99"
+                step="0.01"
+                placeholder="0.00"
                 class="qty-input"
-                @blur="onQtyBlur(item)"
+                @blur="onQtyBlur(item, $event)"
               />
             </div>
             <div class="col-price">
@@ -253,7 +256,7 @@
                     <div class="pdf-product-sub">{{ item.subtitle }}</div>
                   </td>
                   <td class="col-qty">
-                    {{ item.quantity }}
+                    {{ formatQty(item.quantity) }}
                   </td>
                   <td class="col-price">${{ (Number(item.price) || 0).toFixed(2) }}</td>
                   <td class="col-total">${{ item.total.toFixed(2) }}</td>
@@ -495,6 +498,14 @@ const subtotalFormatted = computed(() => `$${subtotal.value.toFixed(2)}`);
 const ivaFormatted = computed(() => `$${iva.value.toFixed(2)}`);
 const totalFormatted = computed(() => `$${total.value.toFixed(2)}`);
 
+/** Formato cantidad: hasta 6 enteros y 2 decimales para PDF/listado */
+const formatQty = (n: number) => {
+  const val = Number(n);
+  if (Number.isNaN(val) || val < 0) return "0.00";
+  const clamped = Math.min(999999.99, Math.max(0, val));
+  return clamped.toFixed(2);
+};
+
 const onPriceBlur = (item: { price: number }, event: FocusEvent) => {
   const raw = (event.target as HTMLInputElement | null)?.value.trim() ?? "";
 
@@ -514,14 +525,27 @@ const onPriceBlur = (item: { price: number }, event: FocusEvent) => {
   });
 };
 
-const onQtyBlur = (item: { quantity: number }) => {
-  if (
-    item.quantity == null ||
-    Number.isNaN(item.quantity) ||
-    item.quantity <= 0
-  ) {
-    item.quantity = 1;
+const onQtyBlur = (item: { quantity: number }, event: FocusEvent) => {
+  const raw = (event.target as HTMLInputElement | null)?.value.trim() ?? "";
+  if (!raw) {
+    nextTick(() => {
+      item.quantity = 1;
+    });
+    return;
   }
+  const normalized = raw.replace(/,/g, ".");
+  const parsed = Number(normalized);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    nextTick(() => {
+      item.quantity = 1;
+    });
+    return;
+  }
+  // Redondear a 2 decimales y limitar a 6 enteros + 2 decimales (máx 999999.99)
+  const clamped = Math.min(999999.99, Math.max(0.01, Math.round(parsed * 100) / 100));
+  nextTick(() => {
+    item.quantity = clamped;
+  });
 };
 
 const onSave = () => {
@@ -832,8 +856,8 @@ input[type="number"] {
 }
 
 .qty-input {
-  width: 70px;
-  text-align: center;
+  width: 100px;
+  text-align: right;
 }
 
 .price-input {
