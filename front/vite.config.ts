@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "appstore-images/ios/180.png"],
       manifest: {
-        name: "Personal",
-        short_name: "Jaime Morán",
-        description: "App personal de Jaime Morán Santos",
+        name: "Oficina Virtual Geomtech S.A.",
+        short_name: "Geomtech",
+        description: "Oficina Virtual Geomtech S.A.",
         theme_color: "#053f51",
         background_color: "#ffffff",
         display: "standalone",

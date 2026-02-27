@@ -156,7 +156,19 @@
               <span>{{ item.totalFormatted }}</span>
             </div>
             <div class="col-actions">
-              <button class="icon-button" type="button">🗑️</button>
+              <button
+                type="button"
+                class="icon-button icon-button-delete"
+                :aria-label="`Eliminar ${item.name}`"
+                @click="openDeleteConfirm(item)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -300,12 +312,31 @@
         </footer>
       </div>
     </div>
+
+    <AppModal
+      v-model="showDeleteModal"
+      title="¿Eliminar producto?"
+      variant="danger"
+    >
+      <p v-if="itemToRemove">
+        Se eliminará <strong>{{ itemToRemove.name }}</strong> de la cotización.
+      </p>
+      <template #footer>
+        <button type="button" class="modal-btn modal-btn-cancel" @click="closeDeleteModal">
+          Cancelar
+        </button>
+        <button type="button" class="modal-btn modal-btn-primary" @click="confirmDelete">
+          Eliminar
+        </button>
+      </template>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, computed, ref, nextTick } from "vue";
 import html2pdf from "html2pdf.js";
+import AppModal from "../components/AppModal.vue";
 import { useToastStore } from "../stores/toast";
 
 type Product = {
@@ -331,6 +362,26 @@ const form = reactive({
 const showSuggestions = ref(false);
 const pdfRef = ref<HTMLElement | null>(null);
 const toastStore = useToastStore();
+
+const showDeleteModal = ref(false);
+const itemToRemove = ref<{ id: string; name: string } | null>(null);
+
+const openDeleteConfirm = (item: { id: string; name: string }) => {
+  itemToRemove.value = { id: item.id, name: item.name };
+  showDeleteModal.value = true;
+};
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false;
+  itemToRemove.value = null;
+};
+
+const confirmDelete = () => {
+  if (!itemToRemove.value) return;
+  const index = items.findIndex((i) => i.id === itemToRemove.value!.id);
+  if (index !== -1) items.splice(index, 1);
+  closeDeleteModal();
+};
 
 const onSearchFocus = () => {
   showSuggestions.value = true;
@@ -870,7 +921,22 @@ input[type="number"] {
   background: transparent;
   cursor: pointer;
   font-size: 1rem;
+  padding: 0.35rem;
+  border-radius: 6px;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
 }
+
+.icon-button:hover,
+.icon-button:focus-visible {
+  color: #b91c1c;
+  background: #fef2f2;
+  outline: none;
+}
+
 
 .summary-block {
   margin-top: 1rem;
