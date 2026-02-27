@@ -16,17 +16,10 @@ jobs:
         working-directory: functions
         run: npm ci
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
-        with:
-          project_id: personal-67927
-          service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PERSONAL_67927 }}
-          export_default_credentials: true
-
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Deploy Firebase Functions (via Firebase)
-        run: |
-          export FIREBASE_TOKEN="$(gcloud auth print-access-token)"
-          firebase deploy --only functions --project=personal-67927 --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
+        run: firebase deploy --only functions --project=personal-67927 --non-interactive
