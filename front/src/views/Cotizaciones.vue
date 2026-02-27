@@ -301,7 +301,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, ref } from "vue";
+import { reactive, computed, ref, nextTick } from "vue";
 import html2pdf from "html2pdf.js";
 import { useToastStore } from "../stores/toast";
 
@@ -430,25 +430,22 @@ const ivaFormatted = computed(() => `$${iva.value.toFixed(2)}`);
 const totalFormatted = computed(() => `$${total.value.toFixed(2)}`);
 
 const onPriceBlur = (item: { price: number }, event: FocusEvent) => {
-  const target = event.target as HTMLInputElement | null;
-  const raw = target?.value.trim() ?? "";
+  const raw = (event.target as HTMLInputElement | null)?.value.trim() ?? "";
 
+  let newPrice: number;
   if (!raw) {
-    item.price = 0;
-    if (target) target.value = "0";
-    return;
+    newPrice = 0;
+  } else {
+    const normalized = raw.replace(/,/g, ".");
+    const parsed = Number(normalized);
+    newPrice = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
   }
 
-  // Reemplazar comas por puntos para manejar decimales con coma
-  const normalized = raw.replace(/,/g, ".");
-  const parsed = Number(normalized);
-  if (Number.isNaN(parsed) || parsed < 0) {
-    item.price = 0;
-    if (target) target.value = "0";
-  } else {
-    item.price = parsed;
-    if (target) target.value = parsed.toString();
-  }
+  // Actualizar en nextTick para no re-renderizar durante el blur y evitar
+  // que la pantalla “salte” o se pierda el foco
+  nextTick(() => {
+    item.price = newPrice;
+  });
 };
 
 const onQtyBlur = (item: { quantity: number }) => {
