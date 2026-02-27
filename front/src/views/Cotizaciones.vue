@@ -116,8 +116,8 @@
           <div class="products-header">
             <span class="col-id">ID</span>
             <span class="col-name">Producto</span>
-            <span class="col-price">Precio unitario</span>
             <span class="col-qty">Cantidad</span>
+            <span class="col-price">Precio unitario</span>
             <span class="col-total">Total</span>
             <span class="col-actions"></span>
           </div>
@@ -130,6 +130,15 @@
               <p class="product-title">{{ item.name }}</p>
               <p class="product-subtitle">{{ item.subtitle }}</p>
             </div>
+            <div class="col-qty">
+              <input
+                v-model.number="item.quantity"
+                type="number"
+                min="1"
+                class="qty-input"
+                @blur="onQtyBlur(item)"
+              />
+            </div>
             <div class="col-price">
               <input
                 v-model.number="item.price"
@@ -138,15 +147,6 @@
                 step="0.01"
                 class="price-input"
                 @blur="onPriceBlur(item, $event)"
-              />
-            </div>
-            <div class="col-qty">
-              <input
-                v-model.number="item.quantity"
-                type="number"
-                min="1"
-                class="qty-input"
-                @blur="onQtyBlur(item)"
               />
             </div>
             <div class="col-total">
@@ -241,8 +241,8 @@
               <thead>
                 <tr>
                   <th class="col-name">Producto</th>
-                  <th class="col-price">Precio Unit.</th>
                   <th class="col-qty">Cantidad</th>
+                  <th class="col-price">Precio Unit.</th>
                   <th class="col-total">Total</th>
                 </tr>
               </thead>
@@ -252,10 +252,10 @@
                     <div class="pdf-product-name">{{ item.name }}</div>
                     <div class="pdf-product-sub">{{ item.subtitle }}</div>
                   </td>
-                  <td class="col-price">${{ item.price.toFixed(2) }}</td>
                   <td class="col-qty">
                     {{ item.quantity }}
                   </td>
+                  <td class="col-price">${{ item.price.toFixed(2) }}</td>
                   <td class="col-total">${{ item.total.toFixed(2) }}</td>
                 </tr>
               </tbody>
