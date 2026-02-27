@@ -1,22 +1,44 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, watch, ref, computed } from "vue";
 import { useUserStore } from "./stores/index";
 import { useToastStore } from "./stores/toast";
+import AppLoader from "./components/AppLoader.vue";
+import router from "./router";
 
 const userStore = useUserStore();
 const toastStore = useToastStore();
 
-// Inicializar autenticación al cargar la app
+// Fallback local: si tras 2s sigue el loader, mostrar app igual (evita quedar atascado)
+const forceHideLoader = ref(false);
 onMounted(() => {
   userStore.initAuth();
+  window.setTimeout(() => {
+    forceHideLoader.value = true;
+  }, 2000);
 });
+
+const showLoader = computed(() => !userStore.authReady && !forceHideLoader.value);
+
+// Cuando la sesión está lista, re-ejecutar el guard para redirigir según auth
+watch(
+  () => userStore.authReady,
+  (ready) => {
+    if (!ready) return;
+    router.isReady().then(() => {
+      router.replace(router.currentRoute.value.fullPath);
+    });
+  }
+);
 </script>
 
 <template>
   <div id="app">
-    <router-view />
+    <AppLoader v-if="showLoader" />
 
-    <transition name="toast-fade">
+    <template v-else>
+      <router-view />
+
+      <transition name="toast-fade">
       <div
         v-if="toastStore.visible && toastStore.message"
         :class="['global-toast', `global-toast--${toastStore.type}`]"
@@ -24,6 +46,7 @@ onMounted(() => {
         {{ toastStore.message }}
       </div>
     </transition>
+    </template>
   </div>
 </template>
 

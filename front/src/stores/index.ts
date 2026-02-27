@@ -18,6 +18,8 @@ export const useUserStore = defineStore("user", () => {
   const user = ref<User | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  /** true cuando Firebase Auth ya resolvió el estado inicial (sesión válida o no) */
+  const authReady = ref(false);
   const isAuthenticated = computed(() => user.value !== null);
 
   // Sincronizar perfil del usuario en Firestore (después de autenticación con Firebase Auth)
@@ -43,24 +45,23 @@ export const useUserStore = defineStore("user", () => {
     }
   };
 
-  const initAuth = async () => {
-    // Configurar persistencia para que el usuario permanezca autenticado en el PWA
-    try {
-      await setPersistence(auth, indexedDBLocalPersistence);
-    } catch (err) {
+  const initAuth = () => {
+    // Persistencia en segundo plano; no bloquear por si tarda o falla (p. ej. iOS/PWA)
+    setPersistence(auth, indexedDBLocalPersistence).catch((err) => {
       console.error("Error configurando la persistencia de Firebase Auth:", err);
-    }
+    });
 
-    onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+    // Fallback: si Firebase no responde en 1.2s, mostrar app para no quedarse en loader
+    const fallbackTimer = window.setTimeout(() => {
+      if (!authReady.value) authReady.value = true;
+    }, 1200);
+
+    onAuthStateChanged(auth, (firebaseUser: User | null) => {
+      window.clearTimeout(fallbackTimer);
       user.value = firebaseUser;
-
-      // Desactivar loading cuando el usuario cambia
+      authReady.value = true;
       loading.value = false;
-
-      // Si hay usuario autenticado con Firebase Auth, sincronizar perfil en Firestore
-      // Hacerlo en background sin bloquear
       if (firebaseUser) {
-        // No usar await aquí para no bloquear
         syncUserProfile(firebaseUser).catch((err) => {
           console.error("Error al sincronizar perfil con Firestore:", err);
         });
