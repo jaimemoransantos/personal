@@ -1,0 +1,181 @@
+import type { User } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  getAdditionalUserInfo,
+  signInWithEmailAndPassword,
+  setPersistence,
+  indexedDBLocalPersistence,
+} from "firebase/auth";
+import { ref, computed } from "vue";
+import { defineStore } from "pinia";
+import { auth } from "../firebase/config";
+import { useApi } from "../composables/useApi";
+
+export const useUserStore = defineStore("user", () => {
+  const user = ref<User | null>(null);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
+  const isAuthenticated = computed(() => user.value !== null);
+
+  // Sincronizar perfil del usuario en Firestore (después de autenticación con Firebase Auth)
+  const syncUserProfile = async (firebaseUser: User) => {
+    try {
+      const api = useApi();
+      const result = await api.post("/api/users/sync-profile", {
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
+      });
+
+      if (result.isNewUser) {
+        console.log("🎉 Perfil nuevo creado en Firestore");
+      } else {
+        console.log("✅ Perfil actualizado en Firestore");
+      }
+
+      return result;
+    } catch (err) {
+      console.error("Error al sincronizar perfil:", err);
+      throw err;
+    }
+  };
+
+  const initAuth = async () => {
+    // Configurar persistencia para que el usuario permanezca autenticado en el PWA
+    try {
+      await setPersistence(auth, indexedDBLocalPersistence);
+    } catch (err) {
+      console.error("Error configurando la persistencia de Firebase Auth:", err);
+    }
+
+    onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+      user.value = firebaseUser;
+
+      // Desactivar loading cuando el usuario cambia
+      loading.value = false;
+
+      // Si hay usuario autenticado con Firebase Auth, sincronizar perfil en Firestore
+      // Hacerlo en background sin bloquear
+      if (firebaseUser) {
+        // No usar await aquí para no bloquear
+        syncUserProfile(firebaseUser).catch((err) => {
+          console.error("Error al sincronizar perfil con Firestore:", err);
+        });
+      }
+    });
+  };
+
+  const loginWithEmail = async (email: string, password: string) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const userCredentialUser = result.user;
+
+      // Si el correo NO está verificado, cerrar sesión inmediatamente y mostrar error
+      if (!userCredentialUser.emailVerified) {
+        await signOut(auth);
+        const message =
+          "Tu correo electrónico aún no ha sido verificado. Revisa tu bandeja de entrada.";
+        error.value = message;
+        loading.value = false;
+        return { success: false, error: message };
+      }
+
+      const additionalUserInfo = getAdditionalUserInfo(result);
+      const isNewUser = additionalUserInfo?.isNewUser ?? false;
+
+      if (isNewUser) {
+        console.log("🎉 Usuario nuevo autenticado con email/contraseña");
+      }
+
+      // El loading se desactivará cuando onAuthStateChanged actualice el usuario
+      return { success: true, isNewUser };
+    } catch (err: any) {
+      // Normalizar códigos de error de Firebase Auth a mensajes de usuario
+      const code = err?.code as string | undefined;
+      const rawMessage =
+        ((err as any)?.error?.message as string | undefined) ??
+        ((err as any)?.message as string | undefined);
+
+      let message = "Error desconocido";
+
+      if (
+        code === "auth/wrong-password" ||
+        code === "auth/user-not-found" ||
+        code === "auth/invalid-credential" ||
+        code === "auth/user-disabled" ||
+        (rawMessage && rawMessage.includes("INVALID_PASSWORD"))
+      ) {
+        message = "Correo o contraseña incorrectos.";
+      } else if (code === "auth/too-many-requests") {
+        message =
+          "Demasiados intentos fallidos. Inténtalo de nuevo más tarde o restablece tu contraseña.";
+      } else if (typeof (err as Error).message === "string") {
+        message = (err as Error).message;
+      }
+
+      error.value = message;
+      loading.value = false;
+      return { success: false, error: message };
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+
+      // La sincronización del perfil en Firestore se hará automáticamente
+      // en onAuthStateChanged después de que Firebase Auth autentique al usuario
+      const additionalUserInfo = getAdditionalUserInfo(result);
+      const isNewUser = additionalUserInfo?.isNewUser ?? false;
+
+      if (isNewUser) {
+        console.log("🎉 Usuario nuevo autenticado con Firebase Auth");
+      }
+
+      // El loading se desactivará cuando onAuthStateChanged actualice el usuario
+      // No esperamos aquí para no bloquear
+      return { success: true, isNewUser };
+    } catch (error: any) {
+      error.value = (error as Error).message ?? "Error desconocido";
+      loading.value = false;
+      return { success: false, error: error.value };
+    }
+  };
+
+  const logout = async () => {
+    loading.value = true;
+    error.value = null;
+    try {
+      await signOut(auth);
+    } catch (error: any) {
+      error.value = (error as Error).message ?? "Error desconocido";
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // Limpiar error
+  const clearError = () => {
+    error.value = null;
+  };
+
+  return {
+    user,
+    loading,
+    error,
+    isAuthenticated,
+    initAuth,
+    signInWithGoogle,
+    loginWithEmail,
+    logout,
+    clearError,
+  };
+});

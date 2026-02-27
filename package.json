@@ -1,0 +1,8 @@
+{
+  "name": "personal-root",
+  "private": true,
+  "scripts": {
+    "dev": "cd functions && npm run serve & cd front && npm run dev"
+  }
+}
+
