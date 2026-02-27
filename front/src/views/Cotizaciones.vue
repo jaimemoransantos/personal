@@ -255,7 +255,7 @@
                   <td class="col-qty">
                     {{ item.quantity }}
                   </td>
-                  <td class="col-price">${{ item.price.toFixed(2) }}</td>
+                  <td class="col-price">${{ (Number(item.price) || 0).toFixed(2) }}</td>
                   <td class="col-total">${{ item.total.toFixed(2) }}</td>
                 </tr>
               </tbody>
@@ -402,10 +402,13 @@ const addProduct = (product: Product) => {
       price: 0,
       quantity: 1,
       get priceFormatted() {
-        return `$${this.price.toFixed(2)}`;
+        const p = Number(this.price);
+        return `$${(Number.isNaN(p) ? 0 : p).toFixed(2)}`;
       },
       get total() {
-        return this.price * this.quantity;
+        const p = Number(this.price);
+        const q = Number(this.quantity);
+        return (Number.isNaN(p) ? 0 : p) * (Number.isNaN(q) || q <= 0 ? 1 : q);
       },
       get totalFormatted() {
         return `$${this.total.toFixed(2)}`;
