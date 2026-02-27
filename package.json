@@ -2,7 +2,8 @@
   "name": "personal-root",
   "private": true,
   "scripts": {
-    "dev": "cd functions && npm run serve & cd front && npm run dev"
+    "dev": "cd functions && npm run serve & cd front && npm run dev",
+    "deploy": "cd front && npm run build && cd ../functions && npm run build && cd .. && firebase deploy --only functions,hosting"
   }
 }
 

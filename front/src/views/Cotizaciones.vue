@@ -1020,7 +1020,7 @@ input[type="number"] {
   background-repeat: no-repeat;
   background-position: center center;
   background-size: 60%;
-  opacity: 0.03;
+  opacity: 0.06;
   pointer-events: none;
   z-index: 0;
 }
