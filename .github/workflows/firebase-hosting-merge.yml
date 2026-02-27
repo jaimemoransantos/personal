@@ -12,6 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create .env.production from secret
+        working-directory: front
+        run: |
+          printf "%s" "${{ secrets.FRONT_ENV_PRODUCTION }}" > .env.production
+
       - name: Install frontend dependencies
         working-directory: front
         run: npm ci
