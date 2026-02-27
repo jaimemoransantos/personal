@@ -161,6 +161,7 @@ export const useUserStore = defineStore("user", () => {
     user,
     loading,
     error,
+    authReady,
     isAuthenticated,
     initAuth,
     signInWithGoogle,
