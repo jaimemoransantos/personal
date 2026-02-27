@@ -73,17 +73,6 @@ export const useUserStore = defineStore("user", () => {
     error.value = null;
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      const userCredentialUser = result.user;
-
-      // Si el correo NO está verificado, cerrar sesión inmediatamente y mostrar error
-      if (!userCredentialUser.emailVerified) {
-        await signOut(auth);
-        const message =
-          "Tu correo electrónico aún no ha sido verificado. Revisa tu bandeja de entrada.";
-        error.value = message;
-        loading.value = false;
-        return { success: false, error: message };
-      }
 
       const additionalUserInfo = getAdditionalUserInfo(result);
       const isNewUser = additionalUserInfo?.isNewUser ?? false;

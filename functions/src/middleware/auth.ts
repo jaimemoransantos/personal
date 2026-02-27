@@ -25,16 +25,8 @@ export const authenticate = async (
     }
 
     const token = authHeader.split("Bearer ")[1];
-    // Verificar el token con Firebase Admin
+    // Verificar el token con Firebase Admin (usuarios gestionados desde Firebase Console)
     const decodedToken = await admin.auth().verifyIdToken(token);
-
-    // Bloquear usuarios cuyo email NO esté verificado
-    if (!decodedToken.email_verified) {
-      throw new ApiError(
-        403,
-        "Email no verificado. Por favor verifica tu correo electrónico."
-      );
-    }
 
     // Agregar información del usuario al request
     req.user = decodedToken;
