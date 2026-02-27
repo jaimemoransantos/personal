@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, ref, computed } from "vue";
+import { onMounted, watch } from "vue";
 import { useUserStore } from "./stores/index";
 import { useToastStore } from "./stores/toast";
 import AppLoader from "./components/AppLoader.vue";
@@ -8,24 +8,23 @@ import router from "./router";
 const userStore = useUserStore();
 const toastStore = useToastStore();
 
-// Fallback local: si tras 2s sigue el loader, mostrar app igual (evita quedar atascado)
-const forceHideLoader = ref(false);
 onMounted(() => {
   userStore.initAuth();
-  window.setTimeout(() => {
-    forceHideLoader.value = true;
-  }, 2000);
 });
 
-const showLoader = computed(() => !userStore.authReady && !forceHideLoader.value);
-
-// Cuando la sesión está lista, re-ejecutar el guard para redirigir según auth
+// Cuando auth está listo: redirigir solo si la ruta actual no cuadra con la sesión
 watch(
   () => userStore.authReady,
   (ready) => {
     if (!ready) return;
     router.isReady().then(() => {
-      router.replace(router.currentRoute.value.fullPath);
+      const route = router.currentRoute.value;
+      const isAuth = userStore.isAuthenticated;
+      if (isAuth && route.path === "/login") {
+        router.replace("/inicio");
+      } else if (!isAuth && route.meta.requiresAuth) {
+        router.replace("/login");
+      }
     });
   }
 );
@@ -33,7 +32,7 @@ watch(
 
 <template>
   <div id="app">
-    <AppLoader v-if="showLoader" />
+    <AppLoader v-if="!userStore.authReady" />
 
     <template v-else>
       <router-view />

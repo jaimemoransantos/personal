@@ -51,13 +51,14 @@ export const useUserStore = defineStore("user", () => {
       console.error("Error configurando la persistencia de Firebase Auth:", err);
     });
 
-    // Fallback: si Firebase no responde en 1.2s, mostrar app para no quedarse en loader
+    // Firebase llama al callback al menos una vez (estado desde persistencia).
+    // Fallback por si tarda (p. ej. PWA reabierta, iOS): no bloquear más de 2s.
     const fallbackTimer = window.setTimeout(() => {
       if (!authReady.value) authReady.value = true;
-    }, 1200);
+    }, 2000);
 
     onAuthStateChanged(auth, (firebaseUser: User | null) => {
-      window.clearTimeout(fallbackTimer);
+      clearTimeout(fallbackTimer);
       user.value = firebaseUser;
       authReady.value = true;
       loading.value = false;
