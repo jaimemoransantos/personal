@@ -81,17 +81,20 @@
     <div class="sidebar-footer">
       <div class="user-info">
         <img
-          v-if="userStore.user?.photoURL"
-          :src="userStore.user.photoURL"
-          :alt="userStore.user.displayName || 'Usuario'"
+          v-if="avatarSrc && !avatarImgError"
+          :src="avatarSrc"
+          :alt="userStore.displayName || 'Usuario'"
           class="user-avatar-small"
+          referrerpolicy="no-referrer"
+          @load="onAvatarLoad"
+          @error="onAvatarError"
         />
         <div v-else class="user-avatar-placeholder-small">
           {{ userInitial }}
         </div>
         <div class="user-details">
           <p class="user-name">
-            {{ userStore.user?.displayName || userStore.user?.email }}
+            {{ userStore.displayName || userStore.user?.email }}
           </p>
           <p class="user-email-small">{{ userStore.user?.email }}</p>
         </div>
@@ -102,18 +105,82 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useUserStore } from "../stores/index";
+import { useApi } from "../composables/useApi";
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const api = useApi();
 const { logout } = userStore;
 
+const avatarImgError = ref(false);
+/** Avatar image src: blob URL (when proxied from Google) or direct photoURL */
+const avatarSrc = ref<string | null>(null);
+
+const isGooglePhoto = (url: string | null | undefined) =>
+  !!url && url.includes("lh3.googleusercontent.com");
+
+function revokeAvatarBlob() {
+  if (avatarSrc.value?.startsWith("blob:")) {
+    URL.revokeObjectURL(avatarSrc.value);
+  }
+  avatarSrc.value = null;
+}
+
+async function loadAvatar() {
+  revokeAvatarBlob();
+  avatarImgError.value = false;
+  const photoURL = userStore.photoURL;
+  if (!photoURL) return;
+
+  if (isGooglePhoto(photoURL)) {
+    try {
+      const blob = await api.getBlob("/api/users/me/avatar");
+      avatarSrc.value = URL.createObjectURL(blob);
+    } catch {
+      avatarImgError.value = true;
+    }
+  } else {
+    avatarSrc.value = photoURL;
+  }
+}
+
+watch(
+  () => userStore.photoURL,
+  (url) => {
+    if (!url) {
+      revokeAvatarBlob();
+      return;
+    }
+    loadAvatar();
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  revokeAvatarBlob();
+});
+
+function onAvatarLoad() {
+  if (import.meta.env.DEV) console.log("[Sidebar Avatar] Image loaded OK");
+}
+function onAvatarError() {
+  if (import.meta.env.DEV) console.warn("[Sidebar Avatar] Image failed to load");
+  avatarImgError.value = true;
+}
+
+onMounted(() => {
+  userStore.fetchProfile();
+});
+
 const userInitial = computed(() => {
-  if (!userStore.user?.email) return "?";
-  return userStore.user.email.charAt(0).toUpperCase();
+  const name = userStore.displayName;
+  if (name?.length) return name.charAt(0).toUpperCase();
+  if (userStore.user?.email) return userStore.user.email.charAt(0).toUpperCase();
+  return "?";
 });
 
 const handleLogout = async () => {

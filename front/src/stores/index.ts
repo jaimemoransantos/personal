@@ -14,13 +14,33 @@ import { defineStore } from "pinia";
 import { auth } from "../firebase/config";
 import { useApi } from "../composables/useApi";
 
+/** Profile from Firestore (users collection). Used for displayName/photoURL when set in DB. */
+export interface UserProfile {
+  displayName?: string | null;
+  photoURL?: string | null;
+  email?: string;
+  organizationId?: string;
+}
+
 export const useUserStore = defineStore("user", () => {
   const user = ref<User | null>(null);
+  /** Profile from Firestore; displayName and photoURL here override Auth when present */
+  const profile = ref<UserProfile | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
   /** true when Firebase Auth has resolved initial auth state (valid session or not) */
   const authReady = ref(false);
   const isAuthenticated = computed(() => user.value !== null);
+
+  /** Display name: Firestore first, then Auth, then email */
+  const displayName = computed(() => {
+    if (profile.value?.displayName) return profile.value.displayName;
+    if (user.value?.displayName) return user.value.displayName;
+    return user.value?.email ?? "";
+  });
+
+  /** Photo URL: Firestore first, then Auth */
+  const photoURL = computed(() => profile.value?.photoURL ?? user.value?.photoURL ?? null);
 
   // Sync user profile to Firestore (after Firebase Auth authentication)
   const syncUserProfile = async (firebaseUser: User) => {
@@ -32,7 +52,13 @@ export const useUserStore = defineStore("user", () => {
         photoURL: firebaseUser.photoURL,
       });
 
-      if (result.isNewUser) {
+      if (result?.data && typeof result.data === "object") {
+        profile.value = result.data as UserProfile;
+        if (import.meta.env.DEV) {
+          console.log("[Profile] After sync – profile:", profile.value, "photoURL:", (result.data as UserProfile)?.photoURL);
+        }
+      }
+      if (result?.isNewUser) {
         console.log("🎉 New profile created in Firestore");
       } else {
         console.log("✅ Profile updated in Firestore");
@@ -42,6 +68,23 @@ export const useUserStore = defineStore("user", () => {
     } catch (err) {
       console.error("Error syncing profile:", err);
       throw err;
+    }
+  };
+
+  /** Fetches profile from API (Firestore). Use when you need displayName/photoURL and sync may not have run yet. */
+  const fetchProfile = async () => {
+    if (!user.value) return;
+    try {
+      const api = useApi();
+      const result = await api.get("/api/users/profile");
+      if (result?.data && typeof result.data === "object") {
+        profile.value = result.data as UserProfile;
+        if (import.meta.env.DEV) {
+          console.log("[Profile] After fetchProfile – profile:", profile.value, "photoURL:", profile.value?.photoURL);
+        }
+      }
+    } catch (e) {
+      if (import.meta.env.DEV) console.warn("[Profile] fetchProfile failed:", e);
     }
   };
 
@@ -60,9 +103,14 @@ export const useUserStore = defineStore("user", () => {
     onAuthStateChanged(auth, (firebaseUser: User | null) => {
       clearTimeout(fallbackTimer);
       user.value = firebaseUser;
+      if (!firebaseUser) {
+        profile.value = null;
+      }
       authReady.value = true;
       loading.value = false;
       if (firebaseUser) {
+        // Load profile from Firestore immediately so displayName/photoURL from DB are available (e.g. "Hola, Jaime Morán")
+        fetchProfile();
         syncUserProfile(firebaseUser).catch((err) => {
           console.error("Error syncing profile with Firestore:", err);
         });
@@ -144,6 +192,7 @@ export const useUserStore = defineStore("user", () => {
     error.value = null;
     try {
       await signOut(auth);
+      profile.value = null;
       const { useOrganizationStore } = await import("./organization");
       useOrganizationStore().clearOrganization();
     } catch (error: any) {
@@ -160,11 +209,15 @@ export const useUserStore = defineStore("user", () => {
 
   return {
     user,
+    profile,
+    displayName,
+    photoURL,
     loading,
     error,
     authReady,
     isAuthenticated,
     initAuth,
+    fetchProfile,
     signInWithGoogle,
     loginWithEmail,
     logout,

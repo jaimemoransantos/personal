@@ -107,9 +107,9 @@ const router = useRouter();
 const userStore = useUserStore();
 
 const displayName = computed(() => {
-  const user = userStore.user;
-  if (!user) return "usuario";
-  return user.displayName || user.email || "usuario";
+  if (userStore.displayName) return userStore.displayName;
+  if (userStore.user?.email) return userStore.user.email;
+  return "usuario";
 });
 
 const formattedDate = computed(() => {

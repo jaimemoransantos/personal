@@ -47,9 +47,24 @@ export const useApi = () => {
     return response.json();
   };
 
+  const getBlob = async (endpoint: string): Promise<Blob> => {
+    const token = await getAuthToken();
+    if (!token) throw new Error("No autenticado");
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { error?: string })?.error || "Error en la petición");
+    }
+    return response.blob();
+  };
+
   return {
     // GET
     get: (endpoint: string) => apiCall(endpoint, { method: "GET" }),
+    getBlob,
 
     // POST
     post: (endpoint: string, data: any) =>

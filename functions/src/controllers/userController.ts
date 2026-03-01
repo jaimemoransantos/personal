@@ -59,6 +59,40 @@ export class UserController {
     }
   }
 
+  /**
+   * GET /api/users/me/avatar
+   * Proxies the user's profile photo (e.g. from Google) to avoid 429/CORS when loading in img.
+   */
+  static async getAvatar(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.uid;
+      const profile = await UserService.getProfile(userId);
+      const photoURL = profile?.photoURL;
+
+      if (!photoURL || typeof photoURL !== "string") {
+        res.status(204).end();
+        return;
+      }
+
+      const imageRes = await fetch(photoURL, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; AppAvatar/1)" },
+      });
+
+      if (!imageRes.ok) {
+        res.status(imageRes.status).end();
+        return;
+      }
+
+      const contentType = imageRes.headers.get("content-type") || "image/jpeg";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      const buffer = await imageRes.arrayBuffer();
+      res.end(Buffer.from(buffer));
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+
   /** PUT /api/users/profile - Update authenticated user's profile in Firestore. */
   static async updateProfile(req: Request, res: Response): Promise<void> {
     try {
