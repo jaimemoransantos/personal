@@ -1018,7 +1018,10 @@ const subtotalAfterDiscount = computed(
   () => subtotal.value - discountAmount.value,
 );
 
-const iva = computed(() => subtotalAfterDiscount.value * 0.15);
+/** Round to 2 decimals so displayed IVA and total are consistent (no 1¢ error from banker's rounding). */
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+const iva = computed(() => round2(subtotalAfterDiscount.value * 0.15));
 
 const total = computed(() => subtotalAfterDiscount.value + iva.value);
 
