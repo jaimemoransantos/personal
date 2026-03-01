@@ -655,14 +655,23 @@ async function fetchCustomers() {
   clientsLoading.value = true;
   try {
     const result = await api.get("/api/customers");
-    clients.value = (result?.data ?? []).map((c: { id: string; name: string; document: string; phone: string; email: string; address: string }) => ({
-      id: c.id,
-      name: c.name ?? "",
-      document: c.document ?? "",
-      phone: c.phone ?? "",
-      email: c.email ?? "",
-      address: c.address ?? "",
-    }));
+    clients.value = (result?.data ?? []).map(
+      (c: {
+        id: string;
+        name: string;
+        document: string;
+        phone: string;
+        email: string;
+        address: string;
+      }) => ({
+        id: c.id,
+        name: c.name ?? "",
+        document: c.document ?? "",
+        phone: c.phone ?? "",
+        email: c.email ?? "",
+        address: c.address ?? "",
+      }),
+    );
   } catch {
     clients.value = [];
   } finally {
@@ -670,8 +679,38 @@ async function fetchCustomers() {
   }
 }
 
+const products = ref<Product[]>([]);
+const productsLoading = ref(false);
+
+async function fetchProducts() {
+  productsLoading.value = true;
+  try {
+    const result = await api.get("/api/products");
+    products.value = (result?.data ?? []).map(
+      (p: {
+        id: string;
+        code: string;
+        name: string;
+        subtitle: string;
+        price: number;
+      }) => ({
+        id: p.id,
+        code: p.code ?? "",
+        name: p.name ?? "",
+        subtitle: p.subtitle ?? "",
+        price: typeof p.price === "number" ? p.price : 0,
+      }),
+    );
+  } catch {
+    products.value = [];
+  } finally {
+    productsLoading.value = false;
+  }
+}
+
 onMounted(() => {
   fetchCustomers();
+  fetchProducts();
 });
 
 const form = reactive({
@@ -890,100 +929,6 @@ const onProductSearchKeydown = (e: KeyboardEvent) => {
   }
 };
 
-const products: Product[] = [
-  {
-    id: "geo-1",
-    code: "GM-HDPE-1.0",
-    name: "Geomembrana HDPE 1.0 mm",
-    subtitle: "Polietileno de alta densidad, impermeabilización",
-    price: 0,
-  },
-  {
-    id: "geo-2",
-    code: "GM-HDPE-0.75",
-    name: "Geomembrana HDPE 0.75 mm",
-    subtitle: "Polietileno de alta densidad, espesor estándar",
-    price: 0,
-  },
-  {
-    id: "geo-3",
-    code: "GM-HDPE-1.5",
-    name: "Geomembrana HDPE 1.5 mm",
-    subtitle: "Polietileno de alta densidad, alta resistencia",
-    price: 0,
-  },
-  {
-    id: "geo-4",
-    code: "GM-HDPE-2.0",
-    name: "Geomembrana HDPE 2.0 mm",
-    subtitle: "Polietileno de alta densidad, uso pesado",
-    price: 0,
-  },
-  {
-    id: "geo-5",
-    code: "GM-LDPE-1.0",
-    name: "Geomembrana LDPE 1.0 mm",
-    subtitle: "Polietileno de baja densidad, flexibilidad",
-    price: 0,
-  },
-  {
-    id: "geo-6",
-    code: "EC-STD",
-    name: "Embed channel (canal de anclaje)",
-    subtitle: "Canal para fijación de geomembrana",
-    price: 0,
-  },
-  {
-    id: "geo-7",
-    code: "SOL-EXT",
-    name: "Soldadura por extrusión",
-    subtitle: "Servicio de soldadura de geomembranas",
-    price: 0,
-  },
-  {
-    id: "geo-8",
-    code: "SOL-CUÑA",
-    name: "Soldadura por cuña (doble)",
-    subtitle: "Unión térmica de geomembranas",
-    price: 0,
-  },
-  {
-    id: "geo-9",
-    code: "GT-NW",
-    name: "Geotextil no tejido",
-    subtitle: "Filtración y separación, varios pesos",
-    price: 0,
-  },
-  {
-    id: "geo-10",
-    code: "GT-TEJ",
-    name: "Geotextil tejido",
-    subtitle: "Refuerzo y estabilización",
-    price: 0,
-  },
-  {
-    id: "geo-11",
-    code: "GD-DREN",
-    name: "Geodrén",
-    subtitle: "Drenaje geosintético, núcleo + geotextil",
-    price: 0,
-  },
-  {
-    id: "geo-12",
-    code: "GEOCELDA",
-    name: "Geocelda",
-    subtitle: "Confinamiento y refuerzo de suelos",
-    price: 0,
-  },
-  {
-    id: "inst-1",
-    code: "INST",
-    name: "Instalación",
-    subtitle: "Servicio de instalación en obra",
-    price: 0,
-  },
-];
-
 const items = reactive<
   Array<
     Product & {
@@ -997,17 +942,15 @@ const items = reactive<
 
 const filteredProducts = computed(() => {
   const q = form.searchProduct.trim().toLowerCase();
-  if (!q) {
-    return [];
-  }
-  return products
+  if (!q) return [] as Product[];
+  return products.value
     .filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.code.toLowerCase().includes(q) ||
-        p.subtitle.toLowerCase().includes(q),
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.code && p.code.toLowerCase().includes(q)) ||
+        (p.subtitle && p.subtitle.toLowerCase().includes(q)),
     )
-    .slice(0, 5);
+    .slice(0, 10);
 });
 
 watch(filteredProducts, (list) => {
@@ -1038,8 +981,7 @@ const addProduct = (product: Product) => {
   } else {
     items.push({
       ...product,
-      // Price is always set manually; we start at 0
-      price: 0,
+      price: product.price ?? 0,
       quantity: 1,
       get priceFormatted() {
         const p = Number(this.price);
@@ -1474,12 +1416,18 @@ input[type="number"] {
 }
 
 .suggestion-code {
+  flex-shrink: 0;
+  width: 8.5rem;
   font-size: 0.72rem;
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
-  background: #e2e8f0;
-  color: #0f172a;
+  background: #053f51;
+  color: #fff;
   font-weight: 600;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .suggestion-main {
@@ -1539,11 +1487,11 @@ input[type="number"] {
 
 .product-code {
   display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
+  padding: 0.12rem 0.35rem;
+  border-radius: 6px;
   background: #0f9f70;
-  color: #ffffff;
-  font-size: 0.75rem;
+  color: #fff;
+  font-size: 0.65rem;
   font-weight: 600;
 }
 

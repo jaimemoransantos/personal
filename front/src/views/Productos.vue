@@ -53,16 +53,26 @@
           class="data-item"
         >
           <div class="data-main">
-            <p class="data-title">
-              <span class="data-code">{{ product.code }}</span>
-              {{ product.name }}
-            </p>
-            <p v-if="product.subtitle" class="data-meta">
-              {{ product.subtitle }}
-            </p>
+            <span v-if="product.code" class="data-code">{{ product.code }}</span>
+            <p class="data-title">{{ product.name }}</p>
+            <p v-if="product.subtitle" class="data-meta">{{ product.subtitle }}</p>
+            <span class="data-price">${{ product.price.toFixed(2) }}</span>
           </div>
           <div class="data-side">
-            <span class="data-price">${{ product.price.toFixed(2) }}</span>
+            <button
+              type="button"
+              class="btn-edit"
+              title="Editar"
+              @click="openEditModal(product)"
+            >
+              <span class="btn-edit-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </span>
+              Editar
+            </button>
           </div>
         </li>
       </ul>
@@ -110,11 +120,54 @@
         </button>
       </template>
     </AppModal>
+
+    <AppModal
+      v-model="showEditModal"
+      title="Editar producto"
+      :close-on-backdrop="!savingEdit"
+    >
+      <form v-if="editingProductId" class="edit-form" @submit.prevent="saveEdit">
+        <label class="form-field">
+          <span class="form-label">Código</span>
+          <input v-model="editForm.code" type="text" />
+        </label>
+        <label class="form-field">
+          <span class="form-label">Nombre</span>
+          <input v-model="editForm.name" type="text" required />
+        </label>
+        <label class="form-field">
+          <span class="form-label">Descripción / Subtítulo</span>
+          <input v-model="editForm.subtitle" type="text" />
+        </label>
+        <label class="form-field">
+          <span class="form-label">Precio</span>
+          <input v-model.number="editForm.price" type="number" step="0.01" min="0" />
+        </label>
+      </form>
+      <template #footer>
+        <button
+          type="button"
+          class="modal-btn modal-btn-cancel"
+          :disabled="savingEdit"
+          @click="showEditModal = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="modal-btn modal-btn-primary"
+          :disabled="savingEdit"
+          @click="saveEdit"
+        >
+          {{ savingEdit ? "Guardando…" : "Guardar" }}
+        </button>
+      </template>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from "vue";
+import { ref, computed, onMounted, reactive, watch } from "vue";
 import AppModal from "../components/AppModal.vue";
 import { useApi } from "../composables/useApi";
 import { useToastStore } from "../stores/toast";
@@ -137,6 +190,16 @@ const searchQuery = ref("");
 const showAddModal = ref(false);
 const savingNew = ref(false);
 const addForm = reactive({
+  code: "",
+  name: "",
+  subtitle: "",
+  price: 0 as number,
+});
+
+const showEditModal = ref(false);
+const editingProductId = ref<string | null>(null);
+const savingEdit = ref(false);
+const editForm = reactive({
   code: "",
   name: "",
   subtitle: "",
@@ -169,6 +232,41 @@ async function saveNew() {
     toast.show(message, "error");
   } finally {
     savingNew.value = false;
+  }
+}
+
+function openEditModal(product: Product) {
+  editingProductId.value = product.id;
+  editForm.code = product.code ?? "";
+  editForm.name = product.name ?? "";
+  editForm.subtitle = product.subtitle ?? "";
+  editForm.price = product.price ?? 0;
+  showEditModal.value = true;
+}
+
+watch(showEditModal, (open) => {
+  if (!open) editingProductId.value = null;
+});
+
+async function saveEdit() {
+  const id = editingProductId.value;
+  if (!id) return;
+  savingEdit.value = true;
+  try {
+    await api.put(`/api/products/${id}`, {
+      code: editForm.code?.trim() ?? "",
+      name: editForm.name.trim(),
+      subtitle: editForm.subtitle?.trim() ?? "",
+      price: Number(editForm.price) || 0,
+    });
+    toast.show("Producto actualizado correctamente", "success");
+    showEditModal.value = false;
+    await fetchProducts();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Error al guardar";
+    toast.show(message, "error");
+  } finally {
+    savingEdit.value = false;
   }
 }
 
@@ -370,36 +468,43 @@ onMounted(() => {
   gap: 1rem;
   padding: 1rem 1.25rem;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
 }
 
 .data-main {
   min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .data-code {
   display: inline-block;
-  margin-right: 0.5rem;
-  padding: 0.15rem 0.5rem;
+  align-self: flex-start;
+  padding: 0.18rem 0.45rem;
   background: #053f51;
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   font-weight: 600;
   border-radius: 6px;
+  letter-spacing: 0.02em;
 }
 
 .data-title {
   margin: 0;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   color: #0f172a;
+  line-height: 1.3;
 }
 
 .data-meta {
-  margin: 0.25rem 0 0 0;
+  margin: 0;
   font-size: 0.85rem;
   color: #64748b;
+  line-height: 1.35;
 }
 
 .data-side {
@@ -407,9 +512,43 @@ onMounted(() => {
 }
 
 .data-price {
-  font-size: 1rem;
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  color: #0f172a;
+}
+
+.btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.85rem;
   color: #053f51;
+  background: #f0fdf4;
+  border: 1px solid #0f9f70;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-edit:hover {
+  background: #dcfce7;
+  border-color: #0c7a57;
+}
+
+.btn-edit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-edit-icon svg {
+  width: 1rem;
+  height: 1rem;
+  color: inherit;
 }
 
 @media (max-width: 640px) {
@@ -423,8 +562,12 @@ onMounted(() => {
   }
 
   .data-item {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .data-side {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>
