@@ -54,13 +54,16 @@ export class UserService {
       logger.info(`User ${userId} assigned to organization: ${organizationId}`);
     }
 
-    await userRef.update({
+    // Preserve manual edits in Firestore: only update email (from Auth) and updatedAt.
+    // Do not overwrite displayName, photoURL, or organizationId when user already exists.
+    const updatePayload: Record<string, unknown> = {
       email: data.email,
-      displayName: data.displayName ?? null,
-      photoURL: data.photoURL ?? null,
-      ...(existing?.organizationId ? {} : { organizationId }),
       updatedAt: Timestamp.now(),
-    });
+    };
+    if (!existing?.organizationId) {
+      updatePayload.organizationId = organizationId;
+    }
+    await userRef.update(updatePayload);
 
     logger.info(`User profile updated in Firestore: ${userId}`);
 
