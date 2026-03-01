@@ -7,7 +7,7 @@
           <p class="page-date-label">Hoy</p>
           <p class="page-date-value">{{ formattedDate }}</p>
         </div>
-        <button class="primary-action" @click="goToNuevaCotizacion">
+        <button class="primary-action" @click="goToNewQuote">
           + Nueva Cotización
         </button>
       </div>
@@ -122,11 +122,11 @@ const formattedDate = computed(() => {
   }).format(now);
 });
 
-const goToNuevaCotizacion = () => {
-  router.push("/cotizaciones");
+const goToNewQuote = () => {
+  router.push("/cotizaciones/nueva");
 };
 
-// TODO: estos datos son de ejemplo; luego se sustituirán por datos reales desde la API
+// TODO: mock data; replace with real API data
 const recentGroups = ref([
   {
     label: "Hoy",

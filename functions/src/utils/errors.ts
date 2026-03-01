@@ -21,7 +21,7 @@ export const handleError = (error: unknown, res: Response): void => {
     return;
   }
 
-  logger.error("Error no manejado:", error);
+  logger.error("Unhandled error:", error);
   res.status(500).json({
     success: false,
     error: error instanceof Error ? error.message : "Error desconocido",

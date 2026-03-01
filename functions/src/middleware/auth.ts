@@ -5,9 +5,8 @@ import * as logger from "firebase-functions/logger";
 import { ApiError } from "../utils/errors";
 
 /**
- * Middleware de autenticación con Firebase Auth
- * Verifica que el request incluya un token válido de Firebase Auth
- * y agrega la información del usuario decodificada a req.user
+ * Firebase Auth authentication middleware.
+ * Ensures the request has a valid Firebase Auth token and attaches decoded user info to req.user.
  */
 export const authenticate = async (
   req: Request,
@@ -25,17 +24,14 @@ export const authenticate = async (
     }
 
     const token = authHeader.split("Bearer ")[1];
-    // Verificar el token con Firebase Admin (usuarios gestionados desde Firebase Console)
     const decodedToken = await admin.auth().verifyIdToken(token);
-
-    // Agregar información del usuario al request
     req.user = decodedToken;
     next();
   } catch (error) {
     if (error instanceof ApiError) {
       return next(error);
     }
-    logger.error("Error de autenticación con Firebase Auth:", error);
+    logger.error("Firebase Auth authentication error:", error);
     next(new ApiError(401, "Token de Firebase Auth inválido"));
   }
 };

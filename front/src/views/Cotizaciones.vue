@@ -1,1212 +1,316 @@
 <template>
-  <div class="cotizaciones-container">
-    <header class="cotizaciones-header">
-      <div>
-        <h1>Crear nueva cotización</h1>
-        <p>Completa los datos del cliente y los productos a cotizar.</p>
-      </div>
-      <div class="cotizaciones-header-actions">
-        <button class="ghost-button" type="button">Limpiar</button>
+  <div class="page">
+    <header class="page-header">
+      <h1 class="page-title">Cotizaciones</h1>
+      <div class="page-header-actions">
+        <div class="search-wrap">
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
+            placeholder="Ej: Buscar por cliente, referencia..."
+          />
+        </div>
       </div>
     </header>
 
-    <section class="card">
-      <header class="card-header">
-        <h2 class="card-title">Datos del cliente</h2>
-      </header>
+    <section class="list-section">
+      <div v-if="filteredQuotes.length === 0" class="list-empty">
+        <p>
+          {{
+            searchQuery.trim()
+              ? "No hay cotizaciones que coincidan con la búsqueda."
+              : "Aún no hay cotizaciones."
+          }}
+        </p>
+        <button class="primary-action" @click="goToNewQuote">
+          {{ searchQuery.trim() ? "Nueva cotización" : "Crear primera cotización" }}
+        </button>
+      </div>
 
-      <div class="card-body">
-        <div class="form-row">
-          <label class="field full">
-            <span class="field-label">Buscar cliente</span>
-            <input
-              v-model="form.searchClient"
-              type="text"
-              placeholder="Buscar cliente..."
-            />
-          </label>
-        </div>
-
-        <div class="form-row">
-          <label class="field">
-            <span class="field-label">Nombre / Razón social</span>
-            <input v-model="form.name" type="text" />
-          </label>
-          <label class="field">
-            <span class="field-label">Cédula / RUC</span>
-            <input v-model="form.document" type="text" />
-          </label>
-          <label class="field">
-            <span class="field-label">Teléfono</span>
-            <input
-              v-model="form.phone"
-              type="tel"
-              placeholder="Ej: 0982136229"
-            />
-          </label>
-        </div>
-
-        <div class="form-row">
-          <label class="field">
-            <span class="field-label">Email</span>
-            <input v-model="form.email" type="email" />
-          </label>
-          <label class="field">
-            <span class="field-label">Dirección</span>
-            <input v-model="form.address" type="text" />
-          </label>
-        </div>
-
-        <div class="form-row">
-          <label class="field full">
-            <span class="field-label">
-              Referencia
-              <span class="field-optional">(Opcional)</span>
+      <ul v-else class="quote-list">
+        <li
+          v-for="quote in filteredQuotes"
+          :key="quote.id"
+          class="quote-item"
+          @click="openQuote(quote)"
+        >
+          <div class="quote-main">
+            <p class="quote-title">{{ quote.title }}</p>
+            <p class="quote-client">{{ quote.client }}</p>
+          </div>
+          <div class="quote-meta">
+            <span class="quote-amount">{{ quote.amount }}</span>
+            <span class="quote-status" :class="`quote-status--${quote.status}`">
+              {{ quote.statusLabel }}
             </span>
-            <input v-model="form.reference" type="text" />
-          </label>
-        </div>
-      </div>
+          </div>
+        </li>
+      </ul>
     </section>
-
-    <section class="card">
-      <header class="card-header">
-        <h2 class="card-title">Detalles de la cotización</h2>
-      </header>
-      <div class="card-body">
-        <div class="form-row">
-          <label class="field full">
-            <span class="field-label">Buscar productos</span>
-            <div class="product-search">
-              <input
-                v-model="form.searchProduct"
-                type="text"
-                placeholder="Buscar producto..."
-                @focus="onSearchFocus"
-                @blur="onSearchBlur"
-              />
-
-              <ul
-                v-if="showSuggestions && filteredProducts.length"
-                class="product-suggestions"
-              >
-                <li
-                  v-for="product in filteredProducts"
-                  :key="product.id"
-                  class="product-suggestion"
-                  @click="addProduct(product)"
-                >
-                  <span class="suggestion-code">{{ product.code }}</span>
-                  <span class="suggestion-main">
-                    <span class="suggestion-name">{{ product.name }}</span>
-                    <span class="suggestion-subtitle">
-                      {{ product.subtitle }}
-                    </span>
-                  </span>
-                  <span class="suggestion-price">
-                    ${{ product.price.toFixed(2) }}
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </label>
-        </div>
-
-        <div v-if="items.length" class="products-table">
-          <div class="products-header">
-            <span class="col-id">ID</span>
-            <span class="col-name">Producto</span>
-            <span class="col-qty">Cantidad</span>
-            <span class="col-price">Precio unitario</span>
-            <span class="col-total">Total</span>
-            <span class="col-actions"></span>
-          </div>
-
-          <div v-for="item in items" :key="item.id" class="products-row">
-            <div class="col-id">
-              <span class="product-code">{{ item.code }}</span>
-            </div>
-            <div class="col-name">
-              <p class="product-title">{{ item.name }}</p>
-              <p class="product-subtitle">{{ item.subtitle }}</p>
-            </div>
-            <div class="col-qty">
-              <input
-                v-model.number="item.quantity"
-                type="number"
-                min="0.01"
-                max="999999.99"
-                step="0.01"
-                placeholder="0.00"
-                class="qty-input"
-                @blur="onQtyBlur(item, $event)"
-              />
-            </div>
-            <div class="col-price">
-              <input
-                v-model.number="item.price"
-                type="number"
-                min="0"
-                step="0.01"
-                class="price-input"
-                @blur="onPriceBlur(item, $event)"
-              />
-            </div>
-            <div class="col-total">
-              <span>{{ item.totalFormatted }}</span>
-            </div>
-            <div class="col-actions">
-              <button
-                type="button"
-                class="icon-button icon-button-delete"
-                :aria-label="`Eliminar ${item.name}`"
-                @click="openDeleteConfirm(item)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <line x1="10" y1="11" x2="10" y2="17" />
-                  <line x1="14" y1="11" x2="14" y2="17" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="items.length" class="summary-block">
-          <div class="summary-row">
-            <div class="summary-label">Suma:</div>
-            <div class="summary-value">{{ subtotalFormatted }}</div>
-          </div>
-          <div class="summary-row">
-            <div class="summary-label">IVA 15%:</div>
-            <div class="summary-value">{{ ivaFormatted }}</div>
-          </div>
-          <div class="summary-row summary-row-total">
-            <div class="summary-label">Total:</div>
-            <div class="summary-value">{{ totalFormatted }}</div>
-          </div>
-        </div>
-
-        <div class="form-row notes-row">
-          <label class="field full">
-            <span class="field-label">Notas</span>
-            <textarea
-              v-model="form.notes"
-              rows="3"
-              placeholder="Notas internas o aclaraciones para el cliente..."
-            />
-          </label>
-        </div>
-      </div>
-    </section>
-
-    <div class="actions-row">
-      <button class="ghost-button" type="button" @click="onSave">
-        Guardar
-      </button>
-      <button class="primary-action" type="button" @click="onExportPdf">
-        Exportar a PDF
-      </button>
-    </div>
-
-    <!-- Layout específico para PDF (oculto en la UI) -->
-    <div class="pdf-wrapper">
-      <div id="cotizacion" ref="pdfRef" class="pdf-page">
-        <div class="pdf-watermark"></div>
-        <header class="pdf-header">
-          <div class="pdf-header-left">
-            <h1 class="pdf-title">Cotización</h1>
-          </div>
-          <div class="pdf-header-right">
-            <img src="/logo_geomtech.jpg" alt="Geomtech" class="pdf-logo" />
-          </div>
-        </header>
-
-        <div class="pdf-content">
-          <section class="pdf-client">
-            <div class="pdf-row">
-              <span class="pdf-label">Cliente:</span>
-              <span class="pdf-value">{{ form.name || "—" }}</span>
-            </div>
-            <div class="pdf-row">
-              <span class="pdf-label">RUC / CI:</span>
-              <span class="pdf-value">{{ form.document || "—" }}</span>
-            </div>
-            <div class="pdf-row">
-              <span class="pdf-label">Email:</span>
-              <span class="pdf-value">{{ form.email || "—" }}</span>
-            </div>
-            <div class="pdf-row">
-              <span class="pdf-label">Teléfono:</span>
-              <span class="pdf-value">{{ form.phone || "—" }}</span>
-            </div>
-            <div class="pdf-row">
-              <span class="pdf-label">Dirección:</span>
-              <span class="pdf-value">{{ form.address || "—" }}</span>
-            </div>
-            <div v-if="form.reference" class="pdf-row">
-              <span class="pdf-label">Referencia:</span>
-              <span class="pdf-value">{{ form.reference }}</span>
-            </div>
-          </section>
-
-          <section class="pdf-table-section" v-if="items.length">
-            <table class="pdf-table">
-              <thead>
-                <tr>
-                  <th class="col-name">Producto</th>
-                  <th class="col-qty">Cantidad</th>
-                  <th class="col-price">Precio Unit.</th>
-                  <th class="col-total">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in items" :key="item.id">
-                  <td class="col-name">
-                    <div class="pdf-product-name">{{ item.name }}</div>
-                    <div class="pdf-product-sub">{{ item.subtitle }}</div>
-                  </td>
-                  <td class="col-qty">
-                    {{ formatQty(item.quantity) }}
-                  </td>
-                  <td class="col-price">${{ (Number(item.price) || 0).toFixed(2) }}</td>
-                  <td class="col-total">${{ item.total.toFixed(2) }}</td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colspan="3" class="pdf-summary-label">Subtotal</td>
-                  <td class="pdf-summary-value">{{ subtotalFormatted }}</td>
-                </tr>
-                <tr>
-                  <td colspan="3" class="pdf-summary-label">IVA 15%</td>
-                  <td class="pdf-summary-value">{{ ivaFormatted }}</td>
-                </tr>
-                <tr>
-                  <td colspan="3" class="pdf-summary-label pdf-summary-total">
-                    Total
-                  </td>
-                  <td class="pdf-summary-value pdf-summary-total">
-                    {{ totalFormatted }}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </section>
-
-          <section v-if="form.notes" class="pdf-notes">
-            <h2 class="pdf-notes-title">Notas</h2>
-            <p class="pdf-notes-text">
-              {{ form.notes }}
-            </p>
-          </section>
-        </div>
-
-        <footer class="pdf-footer">
-          <p class="pdf-footer-text">
-            RUC: 0000000000001 · Correo electrónico: info@gemotech.com.ec ·
-            Teléfono: +593 98 521 8813
-          </p>
-          <p class="pdf-footer-brand">Geomtech S.A.</p>
-        </footer>
-      </div>
-    </div>
-
-    <AppModal
-      v-model="showDeleteModal"
-      title="¿Eliminar producto?"
-      variant="danger"
-    >
-      <p v-if="itemToRemove">
-        Se eliminará <strong>{{ itemToRemove.name }}</strong> de la cotización.
-      </p>
-      <template #footer>
-        <button type="button" class="modal-btn modal-btn-cancel" @click="closeDeleteModal">
-          Cancelar
-        </button>
-        <button type="button" class="modal-btn modal-btn-primary" @click="confirmDelete">
-          Eliminar
-        </button>
-      </template>
-    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, ref, nextTick } from "vue";
-import html2pdf from "html2pdf.js";
-import AppModal from "../components/AppModal.vue";
-import { useToastStore } from "../stores/toast";
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 
-type Product = {
-  id: string;
-  code: string;
-  name: string;
-  subtitle: string;
-  price: number;
+const router = useRouter();
+const searchQuery = ref("");
+
+const goToNewQuote = () => {
+  router.push("/cotizaciones/nueva");
 };
 
-const form = reactive({
-  searchClient: "",
-  name: "",
-  document: "",
-  phone: "",
-  email: "",
-  address: "",
-  reference: "",
-  searchProduct: "",
-  notes: "",
-});
-
-const showSuggestions = ref(false);
-const pdfRef = ref<HTMLElement | null>(null);
-const toastStore = useToastStore();
-
-const showDeleteModal = ref(false);
-const itemToRemove = ref<{ id: string; name: string } | null>(null);
-
-const openDeleteConfirm = (item: { id: string; name: string }) => {
-  itemToRemove.value = { id: item.id, name: item.name };
-  showDeleteModal.value = true;
-};
-
-const closeDeleteModal = () => {
-  showDeleteModal.value = false;
-  itemToRemove.value = null;
-};
-
-const confirmDelete = () => {
-  if (!itemToRemove.value) return;
-  const index = items.findIndex((i) => i.id === itemToRemove.value!.id);
-  if (index !== -1) items.splice(index, 1);
-  closeDeleteModal();
-};
-
-const onSearchFocus = () => {
-  showSuggestions.value = true;
-};
-
-const onSearchBlur = () => {
-  // Pequeño delay para permitir el click en la sugerencia
-  setTimeout(() => {
-    showSuggestions.value = false;
-  }, 100);
-};
-
-const products: Product[] = [
+// TODO: mock data; replace with API
+const quotes = ref([
   {
-    id: "geo-1",
-    code: "GM-HDPE-1.0",
-    name: "Geomembrana HDPE 1.0 mm",
-    subtitle: "Polietileno de alta densidad, impermeabilización",
-    price: 0,
+    id: "1",
+    title: "Geomembrana y soldadura - Obra Norte",
+    client: "Constructora Andina",
+    amount: "$12,450.00",
+    status: "pending",
+    statusLabel: "Pendiente",
   },
   {
-    id: "geo-2",
-    code: "GM-HDPE-0.75",
-    name: "Geomembrana HDPE 0.75 mm",
-    subtitle: "Polietileno de alta densidad, espesor estándar",
-    price: 0,
+    id: "2",
+    title: "Geotextil y geodrén - Proyecto Sur",
+    client: "Municipalidad de Cuenca",
+    amount: "$8,320.50",
+    status: "accepted",
+    statusLabel: "Aceptada",
   },
   {
-    id: "geo-3",
-    code: "GM-HDPE-1.5",
-    name: "Geomembrana HDPE 1.5 mm",
-    subtitle: "Polietileno de alta densidad, alta resistencia",
-    price: 0,
+    id: "3",
+    title: "Embed channel y geomembrana HDPE 1.5mm",
+    client: "Geomtech S.A.",
+    amount: "$22,100.00",
+    status: "pending",
+    statusLabel: "Pendiente",
   },
   {
-    id: "geo-4",
-    code: "GM-HDPE-2.0",
-    name: "Geomembrana HDPE 2.0 mm",
-    subtitle: "Polietileno de alta densidad, uso pesado",
-    price: 0,
+    id: "4",
+    title: "Suministro geomembrana 0.75mm - Lote 5",
+    client: "Ing. Carlos Pérez",
+    amount: "$5,680.00",
+    status: "pending",
+    statusLabel: "Pendiente",
   },
-  {
-    id: "geo-5",
-    code: "GM-LDPE-1.0",
-    name: "Geomembrana LDPE 1.0 mm",
-    subtitle: "Polietileno de baja densidad, flexibilidad",
-    price: 0,
-  },
-  {
-    id: "geo-6",
-    code: "EC-STD",
-    name: "Embed channel (canal de anclaje)",
-    subtitle: "Canal para fijación de geomembrana",
-    price: 0,
-  },
-  {
-    id: "geo-7",
-    code: "SOL-EXT",
-    name: "Soldadura por extrusión",
-    subtitle: "Servicio de soldadura de geomembranas",
-    price: 0,
-  },
-  {
-    id: "geo-8",
-    code: "SOL-CUÑA",
-    name: "Soldadura por cuña (doble)",
-    subtitle: "Unión térmica de geomembranas",
-    price: 0,
-  },
-  {
-    id: "geo-9",
-    code: "GT-NW",
-    name: "Geotextil no tejido",
-    subtitle: "Filtración y separación, varios pesos",
-    price: 0,
-  },
-  {
-    id: "geo-10",
-    code: "GT-TEJ",
-    name: "Geotextil tejido",
-    subtitle: "Refuerzo y estabilización",
-    price: 0,
-  },
-  {
-    id: "geo-11",
-    code: "GD-DREN",
-    name: "Geodrén",
-    subtitle: "Drenaje geosintético, núcleo + geotextil",
-    price: 0,
-  },
-  {
-    id: "geo-12",
-    code: "GEOCELDA",
-    name: "Geocelda",
-    subtitle: "Confinamiento y refuerzo de suelos",
-    price: 0,
-  },
-];
+]);
 
-const items = reactive<
-  Array<
-    Product & {
-      quantity: number;
-      priceFormatted: string;
-      total: number;
-      totalFormatted: string;
-    }
-  >
->([]);
-
-const filteredProducts = computed(() => {
-  const q = form.searchProduct.trim().toLowerCase();
-  if (!q) {
-    // Si no hay búsqueda, no mostramos sugerencias
-    return [];
-  }
-  return products
-    .filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.code.toLowerCase().includes(q) ||
-        p.subtitle.toLowerCase().includes(q),
-    )
-    .slice(0, 5);
-});
-
-const addProduct = (product: Product) => {
-  const existing = items.find((i) => i.id === product.id);
-  if (existing) {
-    existing.quantity += 1;
-  } else {
-    items.push({
-      ...product,
-      // Precio se define siempre manualmente; iniciamos en 0
-      price: 0,
-      quantity: 1,
-      get priceFormatted() {
-        const p = Number(this.price);
-        return `$${(Number.isNaN(p) ? 0 : p).toFixed(2)}`;
-      },
-      get total() {
-        const p = Number(this.price);
-        const q = Number(this.quantity);
-        return (Number.isNaN(p) ? 0 : p) * (Number.isNaN(q) || q <= 0 ? 1 : q);
-      },
-      get totalFormatted() {
-        return `$${this.total.toFixed(2)}`;
-      },
-    });
-  }
-
-  form.searchProduct = "";
-  showSuggestions.value = false;
-};
-
-const subtotal = computed(() =>
-  items.reduce((sum, item) => sum + item.total, 0),
-);
-
-const iva = computed(() => subtotal.value * 0.15);
-
-const total = computed(() => subtotal.value + iva.value);
-
-const subtotalFormatted = computed(() => `$${subtotal.value.toFixed(2)}`);
-const ivaFormatted = computed(() => `$${iva.value.toFixed(2)}`);
-const totalFormatted = computed(() => `$${total.value.toFixed(2)}`);
-
-/** Formato cantidad: hasta 6 enteros y 2 decimales para PDF/listado */
-const formatQty = (n: number) => {
-  const val = Number(n);
-  if (Number.isNaN(val) || val < 0) return "0.00";
-  const clamped = Math.min(999999.99, Math.max(0, val));
-  return clamped.toFixed(2);
-};
-
-const onPriceBlur = (item: { price: number }, event: FocusEvent) => {
-  const raw = (event.target as HTMLInputElement | null)?.value.trim() ?? "";
-
-  let newPrice: number;
-  if (!raw) {
-    newPrice = 0;
-  } else {
-    const normalized = raw.replace(/,/g, ".");
-    const parsed = Number(normalized);
-    newPrice = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
-  }
-
-  // Actualizar en nextTick para no re-renderizar durante el blur y evitar
-  // que la pantalla “salte” o se pierda el foco
-  nextTick(() => {
-    item.price = newPrice;
-  });
-};
-
-const onQtyBlur = (item: { quantity: number }, event: FocusEvent) => {
-  const raw = (event.target as HTMLInputElement | null)?.value.trim() ?? "";
-  if (!raw) {
-    nextTick(() => {
-      item.quantity = 1;
-    });
-    return;
-  }
-  const normalized = raw.replace(/,/g, ".");
-  const parsed = Number(normalized);
-  if (Number.isNaN(parsed) || parsed <= 0) {
-    nextTick(() => {
-      item.quantity = 1;
-    });
-    return;
-  }
-  // Redondear a 2 decimales y limitar a 6 enteros + 2 decimales (máx 999999.99)
-  const clamped = Math.min(999999.99, Math.max(0.01, Math.round(parsed * 100) / 100));
-  nextTick(() => {
-    item.quantity = clamped;
-  });
-};
-
-const onSave = () => {
-  // TODO: conectar con backend para guardar cotización
-  toastStore.show(
-    "Cotización guardada (solo vista previa, sin backend).",
-    "info",
+const filteredQuotes = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return quotes.value;
+  return quotes.value.filter(
+    (quote) =>
+      quote.title.toLowerCase().includes(q) ||
+      quote.client.toLowerCase().includes(q),
   );
-};
+});
 
-const onExportPdf = async () => {
-  if (!pdfRef.value) return;
-
-  const element = pdfRef.value;
-
-  const opt = {
-    margin: 0,
-    filename: "cotizacion-geomtech.pdf",
-    image: { type: "jpeg", quality: 1.0 },
-    // Aumentamos ligeramente el scale para mejorar nitidez
-    html2canvas: { scale: 2.2, useCORS: true },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak: { mode: ["css"] },
-  } as any;
-
-  const worker: any = html2pdf().set(opt).from(element);
-
-  await worker
-    .toPdf()
-    .get("pdf")
-    .then((pdf: any) => {
-      const totalPages = pdf.internal.getNumberOfPages();
-      // Si hay una segunda página vacía, la eliminamos.
-      if (totalPages > 1) {
-        pdf.deletePage(totalPages);
-      }
-    });
-
-  await worker.save();
+const openQuote = (_quote: (typeof quotes.value)[0]) => {
+  // TODO: navigate to view/edit quote
 };
 </script>
 
 <style scoped>
-.cotizaciones-container {
+.page {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
-.cotizaciones-header {
+.page-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 1rem;
 }
 
-.cotizaciones-header h1 {
+.page-title {
   margin: 0;
-  font-size: 1.6rem;
-  color: #053f51;
-}
-
-.cotizaciones-header p {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.95rem;
-  color: #64748b;
-}
-
-.cotizaciones-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.ghost-button {
-  padding: 0.6rem 1rem;
-  border-radius: 999px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #0f172a;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.1s ease-out;
-}
-
-.ghost-button:hover {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-}
-
-.card {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
-  border: 1px solid #e2e8f0;
-  overflow: hidden;
-}
-
-.card-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.card-title {
-  margin: 0;
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: #0f172a;
 }
 
-.card-body {
-  padding: 1.25rem 1.5rem 1.5rem 1.5rem;
+.page-header-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.9rem;
+.search-wrap {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.field.full {
-  grid-column: 1 / -1;
-}
-
-.field-label {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: #64748b;
-}
-
-.field-optional {
-  font-weight: 400;
-  font-style: italic;
-  color: #94a3b8;
-}
-
-input,
-textarea {
+.search-input {
   width: 100%;
-  padding: 0.7rem 0.8rem;
+  padding: 0.65rem 1rem;
   border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  font-size: 0.9rem;
+  border: 1px solid #cbd5e1;
+  font-size: 0.95rem;
   outline: none;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
-input:focus,
-textarea:focus {
+.search-input:focus {
   border-color: #0f9f70;
   box-shadow: 0 0 0 1px rgba(15, 159, 112, 0.3);
 }
 
-textarea {
-  resize: vertical;
-  min-height: 80px;
+.search-input::placeholder {
+  color: #b8c4d4;
 }
 
-/* Ocultar flechitas de los inputs numéricos */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  appearance: none;
-  margin: 0;
-}
-
-input[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.product-search {
-  position: relative;
-}
-
-.product-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 0.25rem;
-  padding: 0.35rem 0;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
-  border: 1px solid #e2e8f0;
-  list-style: none;
-  max-height: 260px;
-  overflow-y: auto;
-  z-index: 10;
-}
-
-.product-suggestion {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.7rem;
-  cursor: pointer;
-  transition: background 0.1s ease;
-}
-
-.product-suggestion:hover {
-  background: #f8fafc;
-}
-
-.suggestion-code {
-  font-size: 0.72rem;
-  padding: 0.15rem 0.45rem;
+.primary-action {
+  padding: 0.65rem 1.25rem;
   border-radius: 999px;
-  background: #e2e8f0;
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.suggestion-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.suggestion-name {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #0f172a;
-}
-
-.suggestion-subtitle {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-.suggestion-price {
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: #053f51;
-}
-
-.products-table {
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  overflow: hidden;
-}
-
-.products-header,
-.products-row {
-  display: grid;
-  grid-template-columns: 1.2fr 3fr 1.4fr 1.3fr 1.4fr 0.6fr;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.products-header {
-  padding: 0.7rem 1rem;
-  background: #f8fafc;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.products-row {
-  padding: 0.8rem 1rem;
-  border-top: 1px solid #e2e8f0;
-  background: #ffffff;
-}
-
-.product-code {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
+  border: none;
   background: #0f9f70;
   color: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.95rem;
   font-weight: 600;
-}
-
-.product-title {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #0f172a;
-}
-
-.product-subtitle {
-  margin: 0.15rem 0 0 0;
-  font-size: 0.78rem;
-  color: #94a3b8;
-  text-transform: uppercase;
-}
-
-.qty-input {
-  width: 100px;
-  text-align: right;
-}
-
-.price-input {
-  width: 90px;
-  text-align: right;
-}
-
-.icon-button {
-  border: none;
-  background: transparent;
   cursor: pointer;
-  font-size: 1rem;
-  padding: 0.35rem;
-  border-radius: 6px;
-  color: #64748b;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s, background 0.15s;
+  gap: 0.4rem;
+  box-shadow: 0 8px 18px rgba(15, 159, 112, 0.35);
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease-out;
 }
 
-.icon-button:hover,
-.icon-button:focus-visible {
-  color: #b91c1c;
-  background: #fef2f2;
-  outline: none;
+.primary-action:hover:not(:disabled) {
+  background: #0c7a57;
+  box-shadow: 0 10px 24px rgba(15, 159, 112, 0.45);
+  transform: translateY(-1px);
 }
 
+.list-section {
+  flex: 1;
+}
 
-.summary-block {
-  margin-top: 1rem;
-  padding: 0.9rem 1rem;
-  border-radius: 12px;
+.list-empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
   background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #e2e8f0;
+}
+
+.list-empty p {
+  margin: 0 0 1rem 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.quote-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  align-items: flex-end;
+  gap: 0.5rem;
 }
 
-.summary-row {
+.quote-item {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 1rem;
-  font-size: 0.9rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.summary-row-total {
-  font-weight: 600;
+.quote-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
-.summary-label {
+.quote-main {
+  min-width: 0;
+}
+
+.quote-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.quote-client {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.85rem;
   color: #64748b;
 }
 
-.summary-value {
-  color: #0f172a;
-}
-
-.notes-row {
-  margin-top: 0.5rem;
-}
-
-.actions-row {
+.quote-meta {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-/* Layout PDF (A4) */
-.pdf-wrapper {
-  position: fixed;
-  left: -9999px;
-  top: 0;
-  width: 210mm;
-  z-index: -1;
-}
-
-#cotizacion {
-  width: 210mm;
-  min-height: 297mm;
-  padding: 0 18mm 0;
-  box-sizing: border-box;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 11px;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-.pdf-page {
-  width: 210mm;
-}
-
-.pdf-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 8mm 0 6mm 0;
-  margin: 0 -18mm 10mm -18mm;
-  padding-left: 18mm;
-  padding-right: 18mm;
-  background: #053f51;
-  color: #f9fafb;
-  /* Bordes para evitar cualquier línea blanca por redondeos en los extremos */
-  border-left: 1px solid #053f51;
-  border-right: 1px solid #053f51;
+  gap: 1rem;
+  flex-shrink: 0;
 }
 
-.pdf-title {
-  margin: 0;
-  font-size: 20px;
+.quote-amount {
+  font-size: 1rem;
   font-weight: 600;
+  color: #053f51;
 }
 
-.pdf-company-name {
-  margin: 0 0 1mm 0;
-  font-weight: 700;
-}
-
-.pdf-company-line {
-  margin: 0;
-  color: #e2e8f0;
-}
-
-.pdf-logo {
-  max-width: 90px;
-  height: auto;
-}
-
-.pdf-client {
-  margin-bottom: 8mm;
-}
-
-.pdf-content {
-  flex: 1;
-}
-
-.pdf-row {
-  display: flex;
-  gap: 3mm;
-  margin-bottom: 1mm;
-}
-
-.pdf-label {
-  min-width: 22mm;
-  font-weight: 600;
-}
-
-.pdf-value {
-  flex: 1;
-}
-
-.pdf-table-section {
-  margin-bottom: 8mm;
-}
-
-.pdf-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.pdf-table thead th {
-  background: #053f51;
-  color: #f9fafb;
-  font-weight: 600;
-  padding: 4px 6px;
-  border-top: 1px solid #053f51;
-  border-bottom: 1px solid #053f51;
-  border-left: none;
-  border-right: none;
-}
-
-.pdf-table tbody td,
-.pdf-table tfoot td {
-  padding: 4px 6px;
-  border-top: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
-  border-left: none;
-  border-right: none;
-}
-
-.pdf-table .col-name {
-  width: 55%;
-}
-
-.pdf-table .col-price {
-  width: 15%;
-  text-align: right;
-}
-
-.pdf-table .col-qty {
-  width: 10%;
-  text-align: center;
-}
-
-.pdf-table .col-total {
-  width: 20%;
-  text-align: right;
-}
-
-.pdf-product-name {
+.quote-status {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
   font-weight: 500;
 }
 
-.pdf-product-sub {
-  font-size: 10px;
-  color: #6b7280;
+.quote-status--pending {
+  background: rgba(234, 179, 8, 0.15);
+  color: #b45309;
 }
 
-.pdf-summary-label {
-  text-align: right;
-  font-weight: 500;
+.quote-status--accepted {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
 }
 
-.pdf-summary-value {
-  text-align: right;
-}
-
-.pdf-summary-total {
-  font-weight: 700;
-}
-
-.pdf-notes {
-  margin-top: 4mm;
-}
-
-.pdf-notes-title {
-  margin: 0 0 1mm 0;
-  font-weight: 600;
-}
-
-.pdf-notes-text {
-  margin: 0;
-}
-
-.pdf-footer {
-  margin: 0 -18mm 0 -18mm;
-  padding: 4mm 18mm;
-  background: #053f51;
-  color: #f9fafb;
-  font-size: 10px;
-  text-align: center;
-  border-left: 1px solid #053f51;
-  border-right: 1px solid #053f51;
-}
-
-.pdf-footer-text {
-  margin: 0;
-}
-
-.pdf-footer-brand {
-  margin: 1mm 0 0 0;
-  font-size: 9px;
-  opacity: 0.85;
-}
-
-.pdf-watermark {
-  position: absolute;
-  inset: 0;
-  background-image: url("/patron_geomtech.webp");
-  background-repeat: no-repeat;
-  background-position: center center;
-  background-size: 60%;
-  opacity: 0.06;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.pdf-header,
-.pdf-content,
-.pdf-footer {
-  position: relative;
-  z-index: 1;
-}
-
-@media (max-width: 960px) {
-  .form-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .products-header,
-  .products-row {
-    grid-template-columns: 1.4fr 3fr 1.4fr 1.3fr;
-    grid-template-areas:
-      "id name name name"
-      "id price qty total";
-  }
+.quote-status--rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
 }
 
 @media (max-width: 640px) {
-  .cotizaciones-header {
+  .page-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-wrap {
+    max-width: none;
+  }
+
+  .quote-item {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .form-row {
-    grid-template-columns: 1fr;
+  .quote-meta {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

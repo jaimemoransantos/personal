@@ -11,7 +11,31 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, watch } from "vue";
 import AppSidebar from "../components/AppSidebar.vue";
+import { useUserStore } from "../stores/index";
+import { useOrganizationStore } from "../stores/organization";
+
+const userStore = useUserStore();
+const organizationStore = useOrganizationStore();
+
+onMounted(() => {
+  if (userStore.isAuthenticated && !organizationStore.hasOrganization) {
+    organizationStore.fetchCurrentOrganization();
+  }
+});
+
+watch(
+  () => userStore.isAuthenticated,
+  (isAuth) => {
+    if (isAuth && !organizationStore.hasOrganization) {
+      organizationStore.fetchCurrentOrganization();
+    }
+    if (!isAuth) {
+      organizationStore.clearOrganization();
+    }
+  }
+);
 </script>
 
 <style scoped>

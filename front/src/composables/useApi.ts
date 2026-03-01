@@ -15,7 +15,7 @@ export const useApi = () => {
       const token = await getIdToken(user);
       return token;
     } catch (error) {
-      console.error("Error obteniendo token:", error);
+      console.error("Error getting token:", error);
       return null;
     }
   };

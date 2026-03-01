@@ -12,7 +12,7 @@ onMounted(() => {
   userStore.initAuth();
 });
 
-// Cuando auth está listo: redirigir solo si la ruta actual no cuadra con la sesión
+// When auth is ready: redirect only if current route does not match session state
 watch(
   () => userStore.authReady,
   (ready) => {

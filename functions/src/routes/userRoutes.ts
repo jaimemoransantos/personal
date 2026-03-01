@@ -3,14 +3,13 @@ import { UserController } from "../controllers/userController";
 
 const router = Router();
 
-// POST /api/users/sync-profile - Sincronizar perfil en Firestore
-// (La autenticación se hace con Firebase Auth, este endpoint solo sincroniza el perfil)
+// POST /api/users/sync-profile - Sync profile to Firestore (auth via Firebase Auth)
 router.post("/sync-profile", UserController.syncProfile);
 
-// GET /api/users/profile - Obtener perfil
+// GET /api/users/profile - Get profile
 router.get("/profile", UserController.getProfile);
 
-// PUT /api/users/profile - Actualizar perfil
+// PUT /api/users/profile - Update profile
 router.put("/profile", UserController.updateProfile);
 
 export default router;

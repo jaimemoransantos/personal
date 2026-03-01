@@ -18,11 +18,11 @@ export const useUserStore = defineStore("user", () => {
   const user = ref<User | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
-  /** true cuando Firebase Auth ya resolvió el estado inicial (sesión válida o no) */
+  /** true when Firebase Auth has resolved initial auth state (valid session or not) */
   const authReady = ref(false);
   const isAuthenticated = computed(() => user.value !== null);
 
-  // Sincronizar perfil del usuario en Firestore (después de autenticación con Firebase Auth)
+  // Sync user profile to Firestore (after Firebase Auth authentication)
   const syncUserProfile = async (firebaseUser: User) => {
     try {
       const api = useApi();
@@ -33,26 +33,26 @@ export const useUserStore = defineStore("user", () => {
       });
 
       if (result.isNewUser) {
-        console.log("🎉 Perfil nuevo creado en Firestore");
+        console.log("🎉 New profile created in Firestore");
       } else {
-        console.log("✅ Perfil actualizado en Firestore");
+        console.log("✅ Profile updated in Firestore");
       }
 
       return result;
     } catch (err) {
-      console.error("Error al sincronizar perfil:", err);
+      console.error("Error syncing profile:", err);
       throw err;
     }
   };
 
   const initAuth = () => {
-    // Persistencia en segundo plano; no bloquear por si tarda o falla (p. ej. iOS/PWA)
+    // Persistence in background; do not block if it fails or is slow (e.g. iOS/PWA)
     setPersistence(auth, indexedDBLocalPersistence).catch((err) => {
-      console.error("Error configurando la persistencia de Firebase Auth:", err);
+      console.error("Error setting Firebase Auth persistence:", err);
     });
 
-    // Firebase llama al callback al menos una vez (estado desde persistencia).
-    // Fallback por si tarda (p. ej. PWA reabierta, iOS): no bloquear más de 2s.
+    // Firebase calls the callback at least once (state from persistence).
+    // Fallback if it takes too long (e.g. PWA reopened, iOS): do not block more than 2s.
     const fallbackTimer = window.setTimeout(() => {
       if (!authReady.value) authReady.value = true;
     }, 2000);
@@ -64,7 +64,7 @@ export const useUserStore = defineStore("user", () => {
       loading.value = false;
       if (firebaseUser) {
         syncUserProfile(firebaseUser).catch((err) => {
-          console.error("Error al sincronizar perfil con Firestore:", err);
+          console.error("Error syncing profile with Firestore:", err);
         });
       }
     });
@@ -80,13 +80,13 @@ export const useUserStore = defineStore("user", () => {
       const isNewUser = additionalUserInfo?.isNewUser ?? false;
 
       if (isNewUser) {
-        console.log("🎉 Usuario nuevo autenticado con email/contraseña");
+        console.log("🎉 New user authenticated with email/password");
       }
 
-      // El loading se desactivará cuando onAuthStateChanged actualice el usuario
+      // Loading will be cleared when onAuthStateChanged updates the user
       return { success: true, isNewUser };
     } catch (err: any) {
-      // Normalizar códigos de error de Firebase Auth a mensajes de usuario
+      // Map Firebase Auth error codes to user-facing messages
       const code = err?.code as string | undefined;
       const rawMessage =
         ((err as any)?.error?.message as string | undefined) ??
@@ -122,17 +122,15 @@ export const useUserStore = defineStore("user", () => {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
 
-      // La sincronización del perfil en Firestore se hará automáticamente
-      // en onAuthStateChanged después de que Firebase Auth autentique al usuario
+      // Profile sync to Firestore happens automatically in onAuthStateChanged after Firebase Auth
       const additionalUserInfo = getAdditionalUserInfo(result);
       const isNewUser = additionalUserInfo?.isNewUser ?? false;
 
       if (isNewUser) {
-        console.log("🎉 Usuario nuevo autenticado con Firebase Auth");
+        console.log("🎉 New user authenticated with Firebase Auth");
       }
 
-      // El loading se desactivará cuando onAuthStateChanged actualice el usuario
-      // No esperamos aquí para no bloquear
+      // Loading will be cleared when onAuthStateChanged updates the user; we don't await here to avoid blocking
       return { success: true, isNewUser };
     } catch (error: any) {
       error.value = (error as Error).message ?? "Error desconocido";
@@ -146,6 +144,8 @@ export const useUserStore = defineStore("user", () => {
     error.value = null;
     try {
       await signOut(auth);
+      const { useOrganizationStore } = await import("./organization");
+      useOrganizationStore().clearOrganization();
     } catch (error: any) {
       error.value = (error as Error).message ?? "Error desconocido";
     } finally {
@@ -153,7 +153,7 @@ export const useUserStore = defineStore("user", () => {
     }
   };
 
-  // Limpiar error
+  // Clear error state
   const clearError = () => {
     error.value = null;
   };

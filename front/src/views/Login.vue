@@ -62,7 +62,7 @@ const { loading, loginWithEmail, clearError } = userStore;
 const email = ref("");
 const password = ref("");
 
-// Observar cuando el usuario se autentique para redirigir automáticamente
+// Redirect when user becomes authenticated
 watch(
   () => userStore.isAuthenticated,
   (authenticated) => {
@@ -80,7 +80,7 @@ const handleEmailLogin = async () => {
   if (!result.success && result.error) {
     toastStore.show(result.error, "error");
   }
-  // La redirección se manejará automáticamente por el watcher cuando isAuthenticated sea true
+  // Redirect is handled by the watcher when isAuthenticated becomes true
 };
 </script>
 
@@ -119,7 +119,7 @@ const handleEmailLogin = async () => {
   object-fit: contain;
 }
 
-/* Desktop: modal centrado con más espacio */
+/* Desktop: centered modal with more space */
 @media (min-width: 768px) {
   .login-container {
     padding: 3rem 2rem;

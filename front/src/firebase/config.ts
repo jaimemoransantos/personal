@@ -17,36 +17,30 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const functions = getFunctions(app);
 
-// Conectar a emuladores solo en desarrollo
+// Connect to emulators only in development
 const useEmulators =
   import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true";
 
-// Variable de módulo para evitar conexiones múltiples
+// Module-level flag to avoid connecting more than once
 let emulatorsConnected = false;
 
 if (useEmulators && !emulatorsConnected) {
   try {
-    // Firestore Emulator
     connectFirestoreEmulator(db, "localhost", 8080);
-
-    // Auth Emulator
     connectAuthEmulator(auth, "http://localhost:9099", {
       disableWarnings: true,
     });
-
-    // Functions Emulator
     connectFunctionsEmulator(functions, "localhost", 5001);
 
     emulatorsConnected = true;
 
-    console.log("🔥 Firebase Emulators conectados");
+    console.log("🔥 Firebase emulators connected");
     console.log("  - Firestore: localhost:8080");
     console.log("  - Auth: localhost:9099");
     console.log("  - Functions: localhost:5001");
   } catch (error) {
-    // If there is an error, probably already connected
     console.warn(
-      "Error conectando emuladores (puede que ya estén conectados):",
+      "Error connecting to emulators (they may already be connected):",
       error
     );
   }

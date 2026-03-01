@@ -10,18 +10,72 @@
         :class="{ active: isActive('/inicio') }"
         @click="goTo('/inicio')"
       >
-        <span class="nav-icon">📊</span>
+        <span class="nav-icon nav-icon-svg" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        </span>
         <span class="nav-label">Inicio</span>
+      </button>
+      <button
+        class="nav-item"
+        :class="{ active: route.path.startsWith('/cotizaciones/nueva') }"
+        @click="goTo('/cotizaciones/nueva')"
+      >
+        <span class="nav-icon nav-icon-svg" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </span>
+        <span class="nav-label">Cotizar</span>
       </button>
       <button
         class="nav-item"
         :class="{ active: isActive('/cotizaciones') }"
         @click="goTo('/cotizaciones')"
       >
-        <span class="nav-icon">📄</span>
+        <span class="nav-icon nav-icon-svg" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+            <line x1="8" y1="16" x2="16" y2="16" />
+            <line x1="8" y1="20" x2="12" y2="20" />
+          </svg>
+        </span>
         <span class="nav-label">Cotizaciones</span>
       </button>
-      <!-- Aquí se agregarán más botones después -->
+      <button
+        class="nav-item"
+        :class="{ active: isActive('/clientes') }"
+        @click="goTo('/clientes')"
+      >
+        <span class="nav-icon nav-icon-svg" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </span>
+        <span class="nav-label">Clientes</span>
+      </button>
+      <button
+        class="nav-item"
+        :class="{ active: isActive('/productos') }"
+        @click="goTo('/productos')"
+      >
+        <span class="nav-icon nav-icon-svg" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+        </span>
+        <span class="nav-label">Productos</span>
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -77,7 +131,7 @@ const goTo = (path: string) => {
 </script>
 
 <style scoped>
-/* Sidebar - 1/5 del ancho */
+/* Sidebar - 1/5 width */
 .sidebar {
   width: 20%;
   background: #053f51;
@@ -152,6 +206,18 @@ const goTo = (path: string) => {
 
 .nav-icon {
   font-size: 1.25rem;
+}
+
+.nav-icon-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.nav-icon-svg svg {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .nav-label {

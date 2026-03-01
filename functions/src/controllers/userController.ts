@@ -4,19 +4,13 @@ import { handleError } from "../utils/errors";
 
 export class UserController {
   /**
-   * POST /api/users/sync-profile
-   * Sincroniza el perfil del usuario en Firestore
-   *
-   * IMPORTANTE: La autenticación se hace con Firebase Auth (no aquí)
-   * Este endpoint solo crea/actualiza el perfil en Firestore después
-   * de que Firebase Auth ya autenticó al usuario.
-   *
-   * El middleware 'authenticate' verifica que el usuario esté autenticado
-   * con Firebase Auth antes de llegar aquí.
+   * POST /api/users/sync-profile - Sync user profile to Firestore.
+   * Auth is done via Firebase Auth; this endpoint only creates/updates the Firestore profile.
+   * The 'authenticate' middleware ensures the user is authenticated before reaching here.
    */
   static async syncProfile(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.user!.uid; // Viene del token de Firebase Auth
+      const userId = req.user!.uid;
       const { email, displayName, photoURL } = req.body;
 
       if (!email) {
@@ -65,11 +59,7 @@ export class UserController {
     }
   }
 
-  /**
-   * PUT /api/users/profile
-   * Actualiza el perfil del usuario autenticado en Firestore
-   * El usuario debe estar autenticado con Firebase Auth
-   */
+  /** PUT /api/users/profile - Update authenticated user's profile in Firestore. */
   static async updateProfile(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user!.uid;

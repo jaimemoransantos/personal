@@ -45,11 +45,11 @@ const props = withDefaults(
   defineProps<{
     modelValue: boolean;
     title: string;
-    /** Cerrar al hacer clic en el fondo */
+    /** Close when clicking the backdrop */
     closeOnBackdrop?: boolean;
-    /** Mostrar botón X en la cabecera */
+    /** Show X close button in header */
     showCloseButton?: boolean;
-    /** Variante visual: default, danger (para confirmaciones destructivas) */
+    /** Visual variant: default, danger (for destructive confirmations) */
     variant?: "default" | "danger";
   }>(),
   {
@@ -104,11 +104,18 @@ function close() {
 .modal-box--danger .modal-footer :deep(.modal-btn-primary) {
   background: #b91c1c;
   color: #fff;
+  border: 1px solid #7f1d1d;
+  outline: none;
 }
 
 .modal-box--danger .modal-footer :deep(.modal-btn-primary:hover),
 .modal-box--danger .modal-footer :deep(.modal-btn-primary:focus-visible) {
   background: #991b1b;
+  border-color: #7f1d1d;
+}
+
+.modal-box--danger .modal-footer :deep(.modal-btn-primary:focus-visible) {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #7f1d1d;
 }
 
 .modal-header {
@@ -168,7 +175,7 @@ function close() {
   flex-wrap: wrap;
 }
 
-/* Clases de utilidad para botones del slot footer (usar con :deep o en el padre) */
+/* Utility classes for footer slot buttons (use with :deep or in parent) */
 .modal-footer :deep(.modal-btn) {
   padding: 0.5rem 1rem;
   border-radius: 8px;

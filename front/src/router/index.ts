@@ -3,6 +3,9 @@ import Login from "../views/Login.vue";
 import MainLayout from "../layouts/MainLayout.vue";
 import Dashboard from "../views/Dashboard.vue";
 import Cotizaciones from "../views/Cotizaciones.vue";
+import NewQuote from "../views/NewQuote.vue";
+import Clientes from "../views/Clientes.vue";
+import Productos from "../views/Productos.vue";
 import { useUserStore } from "../stores/index";
 
 const router = createRouter({
@@ -21,13 +24,28 @@ const router = createRouter({
       children: [
         {
           path: "inicio",
-          name: "Inicio",
+          name: "Home",
           component: Dashboard,
         },
         {
           path: "cotizaciones",
-          name: "Cotizaciones",
+          name: "Quotes",
           component: Cotizaciones,
+        },
+        {
+          path: "cotizaciones/nueva",
+          name: "NewQuote",
+          component: NewQuote,
+        },
+        {
+          path: "clientes",
+          name: "Customers",
+          component: Clientes,
+        },
+        {
+          path: "productos",
+          name: "Products",
+          component: Productos,
         },
         {
           path: "",
@@ -38,16 +56,14 @@ const router = createRouter({
   ],
 });
 
-// Navigation guard - proteger rutas que requieren autenticación
+// Navigation guard: protect routes that require authentication
 router.beforeEach((to, _from, next) => {
   const userStore = useUserStore();
   const isAuthenticated = userStore.isAuthenticated;
 
   if (to.meta.requiresAuth && !isAuthenticated) {
-    // Redirigir a login si no está autenticado
     next("/login");
   } else if (to.path === "/login" && isAuthenticated) {
-    // Si ya está autenticado y va a login, redirigir a inicio
     next("/inicio");
   } else {
     next();
