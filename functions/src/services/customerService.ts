@@ -29,6 +29,15 @@ async function findByDocument(
 }
 
 export class CustomerService {
+  /** Find customer id by organizationId + document (RUC/CI). For linking quotes to existing customers. */
+  static async findIdByDocument(
+    organizationId: string,
+    document: string
+  ): Promise<string | null> {
+    const ref = await findByDocument(organizationId, document);
+    return ref ? ref.id : null;
+  }
+
   static async list(
     organizationId: string
   ): Promise<(Customer & { id: string })[]> {

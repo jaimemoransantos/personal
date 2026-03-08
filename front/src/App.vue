@@ -21,9 +21,16 @@ watch(
       const route = router.currentRoute.value;
       const isAuth = userStore.isAuthenticated;
       if (isAuth && route.path === "/login") {
-        router.replace("/inicio");
+        const redirect = route.query.redirect;
+        const path =
+          typeof redirect === "string" &&
+          redirect.startsWith("/") &&
+          !redirect.startsWith("//")
+            ? redirect
+            : "/inicio";
+        router.replace(path);
       } else if (!isAuth && route.meta.requiresAuth) {
-        router.replace("/login");
+        router.replace({ path: "/login", query: { redirect: route.fullPath } });
       }
     });
   }

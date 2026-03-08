@@ -231,9 +231,9 @@ const recentGroups = ref([
 
 .primary-action {
   padding: 0.9rem 1.6rem;
-  border-radius: 999px;
+  border-radius: 8px;
   border: none;
-  background: #0f9f70;
+  background: #2563eb;
   color: #ffffff;
   font-size: 0.95rem;
   font-weight: 600;
@@ -242,7 +242,7 @@ const recentGroups = ref([
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  box-shadow: 0 8px 18px rgba(15, 159, 112, 0.35);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
   transition:
     background 0.2s ease,
     box-shadow 0.2s ease,
@@ -250,8 +250,8 @@ const recentGroups = ref([
 }
 
 .primary-action:hover:not(:disabled) {
-  background: #0c7a57;
-  box-shadow: 0 10px 24px rgba(15, 159, 112, 0.45);
+  background: #1d4ed8;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.45);
   transform: translateY(-1px);
 }
 

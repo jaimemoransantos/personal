@@ -8,11 +8,13 @@ import {
   signInWithEmailAndPassword,
   setPersistence,
   indexedDBLocalPersistence,
+  getIdToken,
 } from "firebase/auth";
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
 import { auth } from "../firebase/config";
 import { useApi } from "../composables/useApi";
+import { useQuoteDraftStore } from "./quoteDraft";
 
 /** Profile from Firestore (users collection). Used for displayName/photoURL when set in DB. */
 export interface UserProfile {
@@ -88,6 +90,10 @@ export const useUserStore = defineStore("user", () => {
     }
   };
 
+  /** Interval for proactive token refresh (ID token lasts ~1h). Cleared on logout. */
+  let tokenRefreshIntervalId: ReturnType<typeof setInterval> | null = null;
+  const TOKEN_REFRESH_MINUTES = 50;
+
   const initAuth = () => {
     // Persistence in background; do not block if it fails or is slow (e.g. iOS/PWA)
     setPersistence(auth, indexedDBLocalPersistence).catch((err) => {
@@ -103,9 +109,23 @@ export const useUserStore = defineStore("user", () => {
     onAuthStateChanged(auth, (firebaseUser: User | null) => {
       clearTimeout(fallbackTimer);
       user.value = firebaseUser;
+
+      if (tokenRefreshIntervalId !== null) {
+        clearInterval(tokenRefreshIntervalId);
+        tokenRefreshIntervalId = null;
+      }
+
       if (!firebaseUser) {
         profile.value = null;
+        useQuoteDraftStore().clearDraft();
+      } else {
+        // Proactive refresh so the ID token rarely expires before the next API call
+        tokenRefreshIntervalId = setInterval(() => {
+          const current = auth.currentUser;
+          if (current) getIdToken(current, true).catch((err) => console.warn("Token refresh failed:", err));
+        }, TOKEN_REFRESH_MINUTES * 60 * 1000);
       }
+
       authReady.value = true;
       loading.value = false;
       if (firebaseUser) {
@@ -191,6 +211,7 @@ export const useUserStore = defineStore("user", () => {
     loading.value = true;
     error.value = null;
     try {
+      useQuoteDraftStore().clearDraft();
       await signOut(auth);
       profile.value = null;
       const { useOrganizationStore } = await import("./organization");

@@ -20,11 +20,7 @@
           >
             {{ loading ? "Cargando…" : "Actualizar" }}
           </button>
-          <button
-            type="button"
-            class="btn-add"
-            @click="openAddModal"
-          >
+          <button type="button" class="btn-add" @click="openAddModal">
             <span class="btn-add-icon" aria-hidden="true">+</span>
             Agregar
           </button>
@@ -53,10 +49,14 @@
           class="data-item"
         >
           <div class="data-main">
-            <span v-if="product.code" class="data-code">{{ product.code }}</span>
+            <span v-if="product.code" class="data-code">{{
+              product.code
+            }}</span>
             <p class="data-title">{{ product.name }}</p>
-            <p v-if="product.subtitle" class="data-meta">{{ product.subtitle }}</p>
-            <span class="data-price">${{ product.price.toFixed(2) }}</span>
+            <p v-if="product.subtitle" class="data-meta">
+              {{ product.subtitle }}
+            </p>
+            <span class="data-price">{{ formatCurrency(product.price) }}</span>
           </div>
           <div class="data-side">
             <button
@@ -66,9 +66,21 @@
               @click="openEditModal(product)"
             >
               <span class="btn-edit-icon" aria-hidden="true">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                  />
+                  <path
+                    d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                  />
                 </svg>
               </span>
               Editar
@@ -98,7 +110,12 @@
         </label>
         <label class="form-field">
           <span class="form-label">Precio</span>
-          <input v-model.number="addForm.price" type="number" step="0.01" min="0" />
+          <input
+            v-model.number="addForm.price"
+            type="number"
+            step="0.01"
+            min="0"
+          />
         </label>
       </form>
       <template #footer>
@@ -126,7 +143,11 @@
       title="Editar producto"
       :close-on-backdrop="!savingEdit"
     >
-      <form v-if="editingProductId" class="edit-form" @submit.prevent="saveEdit">
+      <form
+        v-if="editingProductId"
+        class="edit-form"
+        @submit.prevent="saveEdit"
+      >
         <label class="form-field">
           <span class="form-label">Código</span>
           <input v-model="editForm.code" type="text" />
@@ -141,7 +162,12 @@
         </label>
         <label class="form-field">
           <span class="form-label">Precio</span>
-          <input v-model.number="editForm.price" type="number" step="0.01" min="0" />
+          <input
+            v-model.number="editForm.price"
+            type="number"
+            step="0.01"
+            min="0"
+          />
         </label>
       </form>
       <template #footer>
@@ -171,6 +197,7 @@ import { ref, computed, onMounted, reactive, watch } from "vue";
 import AppModal from "../components/AppModal.vue";
 import { useApi } from "../composables/useApi";
 import { useToastStore } from "../stores/toast";
+import { formatCurrency } from "../utils/format";
 
 interface Product {
   id: string;
@@ -288,7 +315,8 @@ async function fetchProducts() {
     const result = await api.get("/api/products");
     products.value = result?.data ?? [];
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error al cargar productos";
+    const message =
+      e instanceof Error ? e.message : "Error al cargar productos";
     error.value = message;
     toast.show(message, "error");
   } finally {
@@ -353,6 +381,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-left: auto;
 }
 
 .btn-add {
@@ -390,7 +419,9 @@ onMounted(() => {
   color: #0f172a;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -530,7 +561,9 @@ onMounted(() => {
   border: 1px solid #0f9f70;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .btn-edit:hover {

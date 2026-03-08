@@ -11,6 +11,7 @@
             placeholder="Ej: Buscar por nombre, documento, email..."
           />
         </div>
+        <div class="actions-right">
         <div class="actions-row">
           <button
             type="button"
@@ -18,9 +19,29 @@
             :disabled="loading"
             @click="fetchCustomers"
           >
+            <svg
+              v-if="!loading"
+              class="btn-icon-refresh"
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 21h5v-5" />
+            </svg>
+            <span v-else class="btn-spinner" aria-hidden="true"></span>
             {{ loading ? "Cargando…" : "Actualizar" }}
           </button>
-          <label
+          <!-- <label
             class="btn-primary file-label"
             :class="{ 'file-label--uploading': uploadingExcel }"
           >
@@ -37,7 +58,7 @@
               Subiendo…
             </span>
             <span v-else>Importar desde Excel</span>
-          </label>
+          </label> -->
         </div>
         <button
           type="button"
@@ -47,6 +68,7 @@
           <span class="btn-add-icon" aria-hidden="true">+</span>
           Agregar
         </button>
+        </div>
       </div>
     </header>
 
@@ -234,25 +256,8 @@ const api = useApi();
 const toast = useToastStore();
 const customers = ref<Customer[]>([]);
 const loading = ref(false);
-const uploadingExcel = ref(false);
 const error = ref<string | null>(null);
 const searchQuery = ref("");
-const fileInputRef = ref<HTMLInputElement | null>(null);
-
-interface SkippedRow {
-  excelRow: number;
-  name: string;
-  document: string;
-  email: string;
-  phone: string;
-  address: string;
-}
-const lastImportResult = ref<{
-  created?: number;
-  updated?: number;
-  skipped?: number;
-  skippedRows?: SkippedRow[];
-} | null>(null);
 
 const showEditModal = ref(false);
 const editingCustomerId = ref<string | null>(null);
@@ -371,48 +376,6 @@ async function fetchCustomers() {
   }
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const base64 = dataUrl.split(",")[1];
-      if (base64) resolve(base64);
-      else reject(new Error("No se pudo leer el archivo"));
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
-async function onFileSelected(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-  input.value = "";
-  uploadingExcel.value = true;
-  loading.value = true;
-  error.value = null;
-  try {
-    const base64 = await fileToBase64(file);
-    const result = await api.post("/api/customers/import-excel", { base64 });
-    lastImportResult.value = result?.data ?? null;
-    toast.show(
-      result?.message ?? "Clientes importados correctamente",
-      "success",
-    );
-    await fetchCustomers();
-  } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "Error al importar el Excel";
-    error.value = message;
-    toast.show(message, "error");
-  } finally {
-    uploadingExcel.value = false;
-    loading.value = false;
-  }
-}
-
 onMounted(() => {
   fetchCustomers();
 });
@@ -452,14 +415,24 @@ onMounted(() => {
   max-width: 400px;
 }
 
+.actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
 .actions-row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
+.btn-icon-refresh {
+  flex-shrink: 0;
+}
+
 .btn-add {
-  margin-left: auto;
   flex-shrink: 0;
 }
 
@@ -519,6 +492,9 @@ onMounted(() => {
 }
 
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.65rem 1.25rem;
   border-radius: 10px;
   border: 1px solid #cbd5e1;
@@ -576,6 +552,11 @@ onMounted(() => {
   border-top-color: #fff;
   border-radius: 50%;
   animation: btn-spin 0.7s linear infinite;
+}
+
+.btn-secondary .btn-spinner {
+  border-color: rgba(15, 23, 42, 0.2);
+  border-top-color: #0f172a;
 }
 
 @keyframes btn-spin {

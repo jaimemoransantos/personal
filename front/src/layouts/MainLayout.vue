@@ -4,7 +4,11 @@
 
     <main class="main-content">
       <div class="content-area">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" :key="$route.path" />
+          </transition>
+        </router-view>
       </div>
     </main>
   </div>
@@ -64,6 +68,16 @@ watch(
 .content-area {
   padding: 2rem;
   min-height: 100%;
+}
+
+/* Transición sutil al cambiar de vista: solo fade suave */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
 }
 
 @media (max-width: 768px) {

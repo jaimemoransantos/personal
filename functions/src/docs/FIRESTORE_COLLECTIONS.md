@@ -72,9 +72,12 @@ Quote documents. Query with `where("organizationId", "==", orgId)`. Create via P
 | Field          | Type     | Description        |
 |----------------|----------|--------------------|
 | **organizationId** | string | Required; tenant   |
-| client         | map      | name, document, phone, email, address, directedTo, reference, project |
+| customerId     | string?  | Id of customer doc when quote was created from an existing client (optional) |
+| client         | map      | name (required), document, phone, email, address, directedTo, reference, project (all optional) |
 | items          | array    | { id, code, name, subtitle, quantity, price } |
 | discount       | number   |                    |
+| status         | string?  | "pending" \| "accepted" \| "rejected" (default "pending") |
+| searchTerms    | string?  | Lowercase client name + reference + project for search; set on create/update |
 | validity       | string?  |                    |
 | deliveryPlace  | string?  | "" \| "on_site" \| "warehouse" |
 | deliveryTime   | string?  |                    |

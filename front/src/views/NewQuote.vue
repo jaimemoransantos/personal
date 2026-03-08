@@ -1,22 +1,135 @@
 <template>
   <div class="quote-form-container">
+    <nav class="quote-form-back">
+      <button type="button" class="back-link" @click="onBackClick">
+        <span class="back-icon" aria-hidden="true">←</span>
+        Volver a cotizaciones
+      </button>
+    </nav>
     <header class="quote-form-header">
-      <div>
-        <h1>Crear nueva cotización</h1>
-        <p>Completa los datos del cliente y los productos a cotizar.</p>
+      <div class="quote-form-header-left">
+        <h1>
+          {{ isEditRoute ? "Editar cotización" : "Crear nueva cotización" }}
+        </h1>
+        <p>
+          {{
+            isEditRoute
+              ? "Modifica los datos del cliente y los productos a cotizar."
+              : "Completa los datos del cliente y los productos a cotizar."
+          }}
+        </p>
       </div>
       <div class="quote-form-header-actions">
-        <button class="ghost-button" type="button">Limpiar</button>
+        <div class="quote-form-header-actions-buttons">
+        <button
+          v-if="!isEditRoute"
+          type="button"
+          class="ghost-button"
+          @click="fillMockQuote"
+        >
+          Rellenar datos de prueba
+        </button>
+        <button
+          v-if="!isEditRoute"
+          class="ghost-button ghost-button--danger"
+          type="button"
+          @click="onClear"
+        >
+          <svg
+            class="icon-trash"
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
+          Limpiar
+        </button>
+        </div>
       </div>
     </header>
 
     <section class="card">
-      <header class="card-header">
-        <h2 class="card-title">Datos del cliente</h2>
+      <header class="card-header card-header--with-meta">
+        <div class="card-header-row">
+          <h2 class="card-title">Cliente</h2>
+          <div
+            v-if="isEditRoute"
+            class="status-badge-wrap"
+            ref="statusBadgeWrapRef"
+          >
+          <button
+            type="button"
+            class="status-badge"
+            :class="`status-badge--${form.status || 'pending'}`"
+            aria-haspopup="listbox"
+            :aria-expanded="statusDropdownOpen"
+            @click="statusDropdownOpen = !statusDropdownOpen"
+          >
+            <span class="status-badge-dot" aria-hidden="true"></span>
+            {{ quoteStatusLabel }}
+            <span class="status-badge-chevron" aria-hidden="true">▼</span>
+          </button>
+          <transition name="dropdown-fade">
+            <div
+              v-show="statusDropdownOpen"
+              class="status-dropdown"
+              role="listbox"
+              @click.stop
+            >
+              <button
+                type="button"
+                role="option"
+                :aria-selected="form.status === 'pending'"
+                class="status-dropdown-option status-dropdown-option--pending"
+                @click="setQuoteStatus('pending')"
+              >
+                <span class="status-option-dot"></span>
+                Pendiente
+              </button>
+              <button
+                type="button"
+                role="option"
+                :aria-selected="form.status === 'accepted'"
+                class="status-dropdown-option status-dropdown-option--accepted"
+                @click="setQuoteStatus('accepted')"
+              >
+                <span class="status-option-dot"></span>
+                Aceptada
+              </button>
+              <button
+                type="button"
+                role="option"
+                :aria-selected="form.status === 'rejected'"
+                class="status-dropdown-option status-dropdown-option--rejected"
+                @click="setQuoteStatus('rejected')"
+              >
+                <span class="status-option-dot"></span>
+                Rechazada
+              </button>
+            </div>
+          </transition>
+          </div>
+        </div>
+        <p v-if="isEditRoute && quoteUpdatedAtLabel" class="card-header-meta">
+          Última modificación: {{ quoteUpdatedAtLabel }}
+        </p>
       </header>
 
       <div class="card-body">
-        <div class="form-row">
+        <div v-if="!isEditRoute" class="form-row">
           <label class="field full">
             <span class="field-label">Buscar cliente</span>
             <div class="client-search">
@@ -152,6 +265,41 @@
             />
           </label>
         </div>
+        <div
+          v-if="isEditRoute && customerNotFound && (form.name ?? '').trim()"
+          class="form-row form-row--actions form-row--update-client"
+        >
+          <p class="update-client-hint">
+            El cliente vinculado a esta cotización ya no existe. Puedes crear un
+            nuevo cliente con los datos del formulario y vincularlo al guardar.
+          </p>
+          <button
+            type="button"
+            class="btn-create-client"
+            :disabled="creatingCustomer"
+            @click="onCreateCustomerFromQuote"
+          >
+            {{ creatingCustomer ? "Creando…" : "Crear cliente" }}
+          </button>
+        </div>
+        <div
+          v-if="hasClientChanges"
+          class="form-row form-row--actions form-row--update-client"
+        >
+          <p v-if="isEditRoute" class="update-client-hint">
+            Los datos del formulario difieren del registro del cliente. Si
+            actualizas, se guardarán en Clientes y podrían sobrescribir cambios
+            hechos allí.
+          </p>
+          <button
+            type="button"
+            class="btn-update-client"
+            :disabled="updatingCustomer"
+            @click="onUpdateCustomer"
+          >
+            {{ updatingCustomer ? "Actualizando…" : "Actualizar cliente" }}
+          </button>
+        </div>
       </div>
     </section>
 
@@ -211,7 +359,7 @@
                     </span>
                   </span>
                   <span class="suggestion-price">
-                    ${{ product.price.toFixed(2) }}
+                    {{ formatCurrency(product.price) }}
                   </span>
                 </li>
               </ul>
@@ -239,23 +387,23 @@
             </div>
             <div class="col-qty">
               <input
-                v-model.number="item.quantity"
-                type="number"
-                min="0.01"
-                max="999999.99"
-                step="0.01"
+                :value="item.quantity"
+                type="text"
+                inputmode="decimal"
                 placeholder="0.00"
                 class="qty-input"
+                @input="onDecimalInput($event, (v) => (item.quantity = v))"
                 @blur="onQtyBlur(item, $event)"
               />
             </div>
             <div class="col-price">
               <input
-                v-model.number="item.price"
-                type="number"
-                min="0"
-                step="0.01"
+                :value="item.price"
+                type="text"
+                inputmode="decimal"
+                placeholder="0.00"
                 class="price-input"
+                @input="onDecimalInput($event, (v) => (item.price = v))"
                 @blur="onPriceBlur(item, $event)"
               />
             </div>
@@ -295,13 +443,13 @@
         <div v-if="items.length" class="discount-row">
           <label class="discount-row-label">Descuento (valor en $)</label>
           <input
-            v-model.number="form.discount"
-            type="number"
-            min="0"
-            step="0.01"
+            :value="form.discount"
+            type="text"
+            inputmode="decimal"
             placeholder="0.00"
             class="discount-row-input"
-            @blur="onDiscountBlur"
+            @input="onDecimalInput($event, (v) => (form.discount = v))"
+            @blur="onDiscountBlur($event)"
           />
         </div>
 
@@ -394,12 +542,29 @@
     </section>
 
     <div class="actions-row">
-      <button class="ghost-button" type="button" @click="onSave">
-        Guardar
-      </button>
-      <button class="primary-action" type="button" @click="onExportPdf">
-        Exportar a PDF
-      </button>
+      <div class="actions-left">
+        <div v-if="lastSavedAtLabel" class="save-status">
+          Guardado el {{ lastSavedAtLabel }}
+        </div>
+      </div>
+      <div class="actions-right">
+        <button
+          class="secondary-action"
+          type="button"
+          :disabled="savingQuote"
+          @click="onExportPdf"
+        >
+          Exportar PDF
+        </button>
+        <button
+          class="primary-action"
+          type="button"
+          :disabled="savingQuote"
+          @click="onSave"
+        >
+          {{ savingQuote ? "Guardando…" : "Guardar" }}
+        </button>
+      </div>
     </div>
 
     <!-- Layout específico para PDF (oculto en la UI) -->
@@ -467,9 +632,9 @@
                     {{ formatQty(item.quantity) }}
                   </td>
                   <td class="col-price">
-                    ${{ (Number(item.price) || 0).toFixed(2) }}
+                    {{ formatCurrency(Number(item.price) || 0) }}
                   </td>
-                  <td class="col-total">${{ item.total.toFixed(2) }}</td>
+                  <td class="col-total">{{ formatCurrency(item.total) }}</td>
                 </tr>
               </tbody>
               <tfoot>
@@ -592,17 +757,97 @@
         </button>
       </template>
     </AppModal>
+
+    <AppModal v-model="showBackConfirmModal" title="¿Salir sin guardar?">
+      <p>
+        Tienes cambios sin guardar. ¿Quieres salir de todos modos? Se perderán los datos no guardados.
+      </p>
+      <template #footer>
+        <button
+          type="button"
+          class="modal-btn modal-btn-cancel"
+          @click="onBackConfirmCancel"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="modal-btn modal-btn-cancel"
+          :disabled="savingQuote"
+          @click="onBackWithoutSaving"
+        >
+          No guardar
+        </button>
+        <button
+          type="button"
+          class="modal-btn modal-btn-primary"
+          :disabled="savingQuote"
+          @click="onSaveAndBack"
+        >
+          {{ savingQuote ? "Guardando…" : "Guardar" }}
+        </button>
+      </template>
+    </AppModal>
+
+    <AppModal v-model="showSaveConfirmModal" title="¿Actualizar cliente?">
+      <p>
+        Los datos del cliente han cambiado. ¿Desea actualizar también el
+        registro del cliente antes de guardar la cotización?
+      </p>
+      <template #footer>
+        <button
+          type="button"
+          class="modal-btn modal-btn-cancel"
+          :disabled="savingQuote"
+          @click="showSaveConfirmModal = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="modal-btn modal-btn-cancel"
+          :disabled="savingQuote"
+          @click="onSaveQuoteOnly"
+        >
+          {{ savingQuote ? "Guardando…" : "Solo guardar cotización" }}
+        </button>
+        <button
+          type="button"
+          class="modal-btn modal-btn-primary"
+          :disabled="savingQuote"
+          @click="onSaveQuoteAndUpdateCustomer"
+        >
+          {{ savingQuote ? "Guardando…" : "Actualizar cliente y guardar" }}
+        </button>
+      </template>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, ref, nextTick, watch, onMounted } from "vue";
+import {
+  reactive,
+  computed,
+  ref,
+  nextTick,
+  watch,
+  onMounted,
+  onUnmounted,
+} from "vue";
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import html2pdf from "html2pdf.js";
 import AppModal from "../components/AppModal.vue";
 import { useApi } from "../composables/useApi";
 import { useToastStore } from "../stores/toast";
 import { useOrganizationStore } from "../stores/organization";
+import { useQuoteDraftStore, type QuoteDraftItem } from "../stores/quoteDraft";
+import { useUserStore } from "../stores/index";
 import { NumerosALetras } from "numero-a-letras";
+import {
+  formatCurrency,
+  parseDecimal,
+  normalizeDecimalString,
+} from "../utils/format";
 
 const organizationStore = useOrganizationStore();
 const organization = computed(() => organizationStore.organization);
@@ -708,9 +953,147 @@ async function fetchProducts() {
   }
 }
 
-onMounted(() => {
+const route = useRoute();
+const router = useRouter();
+const quoteDraftStore = useQuoteDraftStore();
+/** Referencia al handler de beforeunload (aviso al cerrar con cambios sin guardar en edición). */
+let onBeforeUnloadRef: (e: BeforeUnloadEvent) => void = () => {};
+/** True when user has changed form/items since load or last save; used for "Volver" confirm. */
+const isDirty = ref(false);
+/** Avoid marking dirty when we programmatically set form/items on load. */
+const initialLoadDone = ref(false);
+const userStore = useUserStore();
+
+const isEditRoute = computed(() => !!route.params.id);
+
+const statusDropdownOpen = ref(false);
+const statusBadgeWrapRef = ref<HTMLElement | null>(null);
+const QUOTE_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendiente",
+  accepted: "Aceptada",
+  rejected: "Rechazada",
+};
+const quoteStatusLabel = computed(
+  () => QUOTE_STATUS_LABELS[form.status || "pending"] ?? "Pendiente",
+);
+function setQuoteStatus(value: "pending" | "accepted" | "rejected") {
+  form.status = value;
+  statusDropdownOpen.value = false;
+}
+
+const quoteUpdatedAtLabel = computed(() => {
+  const d = quoteUpdatedAt.value;
+  if (!d || !(d instanceof Date) || Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("es-EC", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(d)
+    .replace(",", "")
+    .trim();
+});
+
+function resetFormAndDraft() {
+  form.searchClient = "";
+  form.name = "";
+  form.document = "";
+  form.phone = "";
+  form.email = "";
+  form.address = "";
+  form.directedTo = "";
+  form.reference = "";
+  form.project = "";
+  form.searchProduct = "";
+  form.discount = 0;
+  form.status = "pending";
+  form.validity = "";
+  form.deliveryPlace = "";
+  form.deliveryTime = "";
+  form.paymentMethod = "";
+  form.disclaimer = "";
+  form.notes = "";
+  selectedCustomerId.value = null;
+  originalClient.value = null;
+  customerNotFound.value = false;
+  items.splice(0, items.length);
+  // Si estamos editando, no borrar quoteId ni quoteUpdatedAt para que siga visible "Última modificación".
+  if (!route.params.id) {
+    quoteId.value = null;
+    lastSavedAtLabel.value = "";
+    quoteUpdatedAt.value = null;
+    quoteDraftStore.clearDraft();
+  }
+}
+
+watch(
+  () => userStore.user?.uid ?? null,
+  (newUid, oldUid) => {
+    if (oldUid !== undefined && newUid !== oldUid) {
+      resetFormAndDraft();
+    }
+  },
+);
+
+/** Al volver a "Nueva cotización" desde listado o edición, limpiar el formulario (evitar condición de carrera con nextTick). */
+watch(
+  () => [route.path, route.params.id] as const,
+  ([newPath, newId], [oldPath, oldId]) => {
+    const isNewQuotePath = newPath === "/cotizaciones/nueva" && !newId;
+    const cameFromElsewhere =
+      oldPath != null &&
+      (oldPath !== newPath || (oldId != null && oldId !== newId));
+    if (isNewQuotePath && (cameFromElsewhere || quoteId.value != null)) {
+      nextTick(() => {
+        resetFormAndDraft();
+      });
+    }
+  },
+);
+
+onMounted(async () => {
   fetchCustomers();
   fetchProducts();
+  const idFromRoute = route.params.id ?? route.query.quoteId;
+  const quoteIdParam =
+    typeof idFromRoute === "string"
+      ? idFromRoute
+      : Array.isArray(idFromRoute)
+        ? idFromRoute[0]
+        : "";
+  if (quoteIdParam && quoteIdParam.trim()) {
+    await loadQuoteById(quoteIdParam.trim());
+    if (route.query.pdf === "1") {
+      await nextTick();
+      onExportPdf();
+    }
+  }
+  nextTick(() => {
+    initialLoadDone.value = true;
+  });
+  window.addEventListener("beforeunload", onBeforeUnloadRef);
+});
+
+function onStatusDropdownClickOutside(event: MouseEvent) {
+  if (
+    statusDropdownOpen.value &&
+    statusBadgeWrapRef.value &&
+    !statusBadgeWrapRef.value.contains(event.target as Node)
+  ) {
+    statusDropdownOpen.value = false;
+  }
+}
+watch(statusDropdownOpen, (open) => {
+  if (open) {
+    setTimeout(() => {
+      document.addEventListener("click", onStatusDropdownClickOutside);
+    }, 0);
+  } else {
+    document.removeEventListener("click", onStatusDropdownClickOutside);
+  }
 });
 
 const form = reactive({
@@ -725,6 +1108,7 @@ const form = reactive({
   project: "",
   searchProduct: "",
   discount: 0 as number,
+  status: "pending" as "pending" | "accepted" | "rejected",
   validity: "",
   deliveryPlace: "" as "" | "on_site" | "warehouse",
   deliveryTime: "",
@@ -829,6 +1213,19 @@ const onClientSearchKeydown = (e: KeyboardEvent) => {
   }
 };
 
+/** Id del cliente seleccionado de la lista (si eligió uno existente). Se envía como customerId al guardar. */
+const selectedCustomerId = ref<string | null>(null);
+/** En edición: la cotización tenía customerId pero el cliente ya no existe (ej. fue eliminado). */
+const customerNotFound = ref(false);
+/** Snapshot de los campos del cliente al seleccionar; para detectar cambios y habilitar "Actualizar cliente". */
+const originalClient = ref<{
+  name: string;
+  document: string;
+  phone: string;
+  email: string;
+  address: string;
+} | null>(null);
+
 const selectClient = (client: Client) => {
   form.name = client.name;
   form.document = client.document;
@@ -838,9 +1235,191 @@ const selectClient = (client: Client) => {
   form.directedTo = "";
   form.reference = "";
   form.searchClient = "";
+  selectedCustomerId.value = client.id;
+  originalClient.value = {
+    name: client.name ?? "",
+    document: client.document ?? "",
+    phone: client.phone ?? "",
+    email: client.email ?? "",
+    address: client.address ?? "",
+  };
   showClientSuggestions.value = false;
   clientSearchInputRef.value?.blur();
 };
+
+/** Hay cliente seleccionado y algún campo de cliente cambió respecto al original. */
+const hasClientChanges = computed(() => {
+  if (!selectedCustomerId.value || !originalClient.value) return false;
+  const o = originalClient.value;
+  const n = (v: string) => (v ?? "").trim();
+  return (
+    n(form.name) !== n(o.name) ||
+    n(form.document) !== n(o.document) ||
+    n(form.phone) !== n(o.phone) ||
+    n(form.email) !== n(o.email) ||
+    n(form.address) !== n(o.address)
+  );
+});
+
+const updatingCustomer = ref(false);
+const onUpdateCustomer = async () => {
+  if (!selectedCustomerId.value) return;
+  updatingCustomer.value = true;
+  try {
+    await api.put(`/api/customers/${selectedCustomerId.value}`, {
+      name: (form.name ?? "").trim(),
+      document: (form.document ?? "").trim(),
+      phone: (form.phone ?? "").trim(),
+      email: (form.email ?? "").trim(),
+      address: (form.address ?? "").trim(),
+    });
+    const name = (form.name ?? "").trim();
+    const document = (form.document ?? "").trim();
+    const phone = (form.phone ?? "").trim();
+    const email = (form.email ?? "").trim();
+    const address = (form.address ?? "").trim();
+    originalClient.value = { name, document, phone, email, address };
+    toastStore.show("Cliente actualizado correctamente.", "success");
+  } catch (err: any) {
+    toastStore.show(err?.message ?? "Error al actualizar el cliente.", "error");
+  } finally {
+    updatingCustomer.value = false;
+  }
+};
+
+const creatingCustomer = ref(false);
+async function onCreateCustomerFromQuote() {
+  const name = (form.name ?? "").trim();
+  if (!name) {
+    toastStore.show("Ingresa al menos el nombre del cliente.", "error");
+    return;
+  }
+  creatingCustomer.value = true;
+  try {
+    const res = await api.post("/api/customers", {
+      name,
+      document: (form.document ?? "").trim(),
+      phone: (form.phone ?? "").trim(),
+      email: (form.email ?? "").trim(),
+      address: (form.address ?? "").trim(),
+    });
+    const payload = res?.data as
+      | {
+          data?: {
+            id?: string;
+            name?: string;
+            document?: string;
+            phone?: string;
+            email?: string;
+            address?: string;
+          };
+        }
+      | undefined;
+    const created =
+      payload?.data ??
+      (res?.data as
+        | {
+            id?: string;
+            name?: string;
+            document?: string;
+            phone?: string;
+            email?: string;
+            address?: string;
+          }
+        | undefined);
+    if (created?.id) {
+      selectedCustomerId.value = created.id;
+      originalClient.value = {
+        name: created.name ?? name,
+        document: created.document ?? "",
+        phone: created.phone ?? "",
+        email: created.email ?? "",
+        address: created.address ?? "",
+      };
+      customerNotFound.value = false;
+      toastStore.show(
+        "Cliente creado. Al guardar la cotización quedará vinculada a este cliente.",
+        "success",
+      );
+    }
+  } catch (err: any) {
+    toastStore.show(err?.message ?? "Error al crear el cliente.", "error");
+  } finally {
+    creatingCustomer.value = false;
+  }
+}
+
+function fillMockQuote() {
+  resetFormAndDraft();
+  form.name = "Cliente de prueba S.A.";
+  form.document = "1234567890001";
+  form.phone = "0991234567";
+  form.email = "contacto@cliente-prueba.com";
+  form.address = "Av. Ejemplo 123, Quito";
+  form.directedTo = "Ing. Juan Pérez";
+  form.reference = "COT-PRUEBA-001";
+  form.project = "Proyecto piloto";
+  form.discount = 50;
+  form.validity = "15 días";
+  form.deliveryPlace = "on_site";
+  form.deliveryTime = "5 días hábiles";
+  form.paymentMethod = "50% anticipo, 50% a 30 días";
+
+  const mockItems = [
+    {
+      id: "mock-1",
+      code: "PROD-001",
+      name: "Producto de prueba A",
+      subtitle: "Descripción ejemplo",
+      price: 250.5,
+      quantity: 2,
+    },
+    {
+      id: "mock-2",
+      code: "PROD-002",
+      name: "Producto de prueba B",
+      subtitle: "Otro ítem de prueba",
+      price: 180,
+      quantity: 1.5,
+    },
+    {
+      id: "mock-3",
+      code: "PROD-003",
+      name: "Servicio de prueba",
+      subtitle: "Incluye instalación",
+      price: 500,
+      quantity: 1,
+    },
+  ];
+
+  items.splice(0, items.length);
+  mockItems.forEach((raw) => {
+    items.push({
+      id: raw.id,
+      code: raw.code,
+      name: raw.name,
+      subtitle: raw.subtitle,
+      price: raw.price,
+      quantity: raw.quantity,
+      get priceFormatted() {
+        return formatCurrency(Number(this.price) || 0);
+      },
+      get total() {
+        const p = Number(this.price);
+        const q = Number(this.quantity);
+        return (Number.isNaN(p) ? 0 : p) * (Number.isNaN(q) || q <= 0 ? 1 : q);
+      },
+      get totalFormatted() {
+        return formatCurrency(this.total);
+      },
+    });
+  });
+  isDirty.value = true;
+}
+
+function onClear() {
+  resetFormAndDraft();
+}
 
 const showDeleteModal = ref(false);
 const itemToRemove = ref<{ id: string; name: string } | null>(null);
@@ -940,6 +1519,33 @@ const items = reactive<
   >
 >([]);
 
+onBeforeUnloadRef = (e: BeforeUnloadEvent) => {
+  if (route.params.id && isDirty.value) {
+    e.preventDefault();
+    (e as unknown as { returnValue: string }).returnValue = "";
+  }
+};
+onUnmounted(() => {
+  window.removeEventListener("beforeunload", onBeforeUnloadRef);
+  document.removeEventListener("click", onStatusDropdownClickOutside);
+  // Al salir de "Nueva cotización" sin guardar, descartar el borrador para que al volver esté vacío.
+  if (!route.params.id) quoteDraftStore.clearDraft();
+});
+
+watch(
+  () => ({
+    ...form,
+    sid: selectedCustomerId.value,
+    o: originalClient.value,
+    len: items.length,
+    itemsSnap: items.map((i) => ({ id: i.id, q: i.quantity, p: i.price })),
+  }),
+  () => {
+    if (initialLoadDone.value) isDirty.value = true;
+  },
+  { deep: true, flush: "post" },
+);
+
 const filteredProducts = computed(() => {
   const q = form.searchProduct.trim().toLowerCase();
   if (!q) return [] as Product[];
@@ -984,8 +1590,7 @@ const addProduct = (product: Product) => {
       price: product.price ?? 0,
       quantity: 1,
       get priceFormatted() {
-        const p = Number(this.price);
-        return `$${(Number.isNaN(p) ? 0 : p).toFixed(2)}`;
+        return formatCurrency(Number(this.price) || 0);
       },
       get total() {
         const p = Number(this.price);
@@ -993,7 +1598,7 @@ const addProduct = (product: Product) => {
         return (Number.isNaN(p) ? 0 : p) * (Number.isNaN(q) || q <= 0 ? 1 : q);
       },
       get totalFormatted() {
-        return `$${this.total.toFixed(2)}`;
+        return formatCurrency(this.total);
       },
     });
   }
@@ -1002,6 +1607,164 @@ const addProduct = (product: Product) => {
   // Do not set showSuggestions = false here: input keeps focus, so the list
   // will hide because filteredProducts becomes []; when user types again, list reappears.
 };
+
+function pushItemFromDraft(raw: QuoteDraftItem) {
+  items.push({
+    id: raw.id,
+    code: raw.code,
+    name: raw.name,
+    subtitle: raw.subtitle ?? "",
+    price: raw.price ?? 0,
+    quantity: raw.quantity ?? 1,
+    get priceFormatted() {
+      return formatCurrency(Number(this.price) || 0);
+    },
+    get total() {
+      const p = Number(this.price);
+      const q = Number(this.quantity);
+      return (Number.isNaN(p) ? 0 : p) * (Number.isNaN(q) || q <= 0 ? 1 : q);
+    },
+    get totalFormatted() {
+      return formatCurrency(this.total);
+    },
+  });
+}
+
+function parseQuoteUpdatedAt(raw: unknown): Date | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof raw === "object" && raw !== null) {
+    const sec =
+      (raw as { seconds?: number; _seconds?: number }).seconds ??
+      (raw as { seconds?: number; _seconds?: number })._seconds;
+    if (typeof sec === "number") return new Date(sec * 1000);
+  }
+  return null;
+}
+
+async function loadQuoteById(id: string) {
+  try {
+    const res = await api.get(`/api/quotes/${id}`);
+    const q = res?.data as {
+      id?: string;
+      updatedAt?: unknown;
+      customerId?: string;
+      client?: {
+        name?: string;
+        document?: string;
+        phone?: string;
+        email?: string;
+        address?: string;
+        directedTo?: string;
+        reference?: string;
+        project?: string;
+      };
+      items?: {
+        id: string;
+        code: string;
+        name: string;
+        subtitle?: string;
+        quantity: number;
+        price: number;
+      }[];
+      discount?: number;
+      status?: string;
+      validity?: string;
+      deliveryPlace?: string;
+      deliveryTime?: string;
+      paymentMethod?: string;
+      disclaimer?: string;
+      notes?: string;
+    };
+    if (!q?.client || !Array.isArray(q.items)) return;
+    quoteId.value = q.id ?? id;
+    quoteUpdatedAt.value = parseQuoteUpdatedAt(q.updatedAt);
+    const cid = q.customerId ?? null;
+    const c = q.client;
+    const quoteSnapshot = c
+      ? {
+          name: c.name ?? "",
+          document: c.document ?? "",
+          phone: c.phone ?? "",
+          email: c.email ?? "",
+          address: c.address ?? "",
+        }
+      : null;
+    if (cid) {
+      try {
+        const custRes = await api.get(`/api/customers/${cid}`);
+        const cust = custRes?.data as
+          | {
+              name?: string;
+              document?: string;
+              phone?: string;
+              email?: string;
+              address?: string;
+            }
+          | undefined;
+        customerNotFound.value = false;
+        selectedCustomerId.value = cid;
+        originalClient.value = cust
+          ? {
+              name: cust.name ?? "",
+              document: cust.document ?? "",
+              phone: cust.phone ?? "",
+              email: cust.email ?? "",
+              address: cust.address ?? "",
+            }
+          : quoteSnapshot;
+      } catch {
+        selectedCustomerId.value = null;
+        originalClient.value = quoteSnapshot;
+        customerNotFound.value = true;
+      }
+    } else {
+      customerNotFound.value = false;
+      selectedCustomerId.value = null;
+      originalClient.value = quoteSnapshot;
+    }
+    form.name = q.client.name ?? "";
+    form.document = q.client.document ?? "";
+    form.phone = q.client.phone ?? "";
+    form.email = q.client.email ?? "";
+    form.address = q.client.address ?? "";
+    form.directedTo = q.client.directedTo ?? "";
+    form.reference = q.client.reference ?? "";
+    form.project = q.client.project ?? "";
+    form.discount = Number(q.discount) ?? 0;
+    form.status = (
+      q.status === "accepted" || q.status === "rejected" ? q.status : "pending"
+    ) as "pending" | "accepted" | "rejected";
+    form.validity = q.validity ?? "";
+    form.deliveryPlace = (
+      q.deliveryPlace === "on_site" || q.deliveryPlace === "warehouse"
+        ? q.deliveryPlace
+        : ""
+    ) as "" | "on_site" | "warehouse";
+    form.deliveryTime = q.deliveryTime ?? "";
+    form.paymentMethod = q.paymentMethod ?? "";
+    form.disclaimer = q.disclaimer ?? "";
+    form.notes = q.notes ?? "";
+    items.splice(0, items.length);
+    q.items.forEach((it) =>
+      pushItemFromDraft({
+        id: it.id,
+        code: it.code,
+        name: it.name,
+        subtitle: it.subtitle ?? "",
+        quantity: it.quantity,
+        price: it.price,
+      }),
+    );
+    isDirty.value = false;
+  } catch (e) {
+    console.error("Error loading quote:", e);
+    toastStore.show("No se pudo cargar la cotización.", "error");
+  }
+}
 
 const subtotal = computed(() =>
   items.reduce((sum, item) => sum + item.total, 0),
@@ -1025,10 +1788,10 @@ const iva = computed(() => round2(subtotalAfterDiscount.value * 0.15));
 
 const total = computed(() => subtotalAfterDiscount.value + iva.value);
 
-const subtotalFormatted = computed(() => `$${subtotal.value.toFixed(2)}`);
-const discountFormatted = computed(() => `$${discountAmount.value.toFixed(2)}`);
-const ivaFormatted = computed(() => `$${iva.value.toFixed(2)}`);
-const totalFormatted = computed(() => `$${total.value.toFixed(2)}`);
+const subtotalFormatted = computed(() => formatCurrency(subtotal.value));
+const discountFormatted = computed(() => formatCurrency(discountAmount.value));
+const ivaFormatted = computed(() => formatCurrency(iva.value));
+const totalFormatted = computed(() => formatCurrency(total.value));
 
 /** Total amount in words for PDF: number in letters + ##/100 + "dólares" (e.g. "ocho mil cincuenta 50/100 dólares") */
 const totalInWords = computed(() => {
@@ -1053,13 +1816,24 @@ const totalInWordsSentence = computed(() => {
   return `Son ${words}.`;
 });
 
-const onDiscountBlur = () => {
-  const raw = Number(form.discount);
-  if (Number.isNaN(raw) || raw < 0) {
+/** En cantidad, precio y descuento: convierte coma a punto al escribir y mantiene el modelo sincronizado. */
+function onDecimalInput(event: Event, setModel: (value: number) => void) {
+  const el = event.target as HTMLInputElement | null;
+  if (!el) return;
+  const normalized = normalizeDecimalString(el.value);
+  if (normalized !== el.value) el.value = normalized;
+  const num = Number(normalized);
+  setModel(Number.isFinite(num) ? num : 0);
+}
+
+const onDiscountBlur = (event: FocusEvent) => {
+  const raw = (event.target as HTMLInputElement | null)?.value?.trim() ?? "";
+  const parsed = parseDecimal(raw);
+  if (parsed < 0) {
     form.discount = 0;
     return;
   }
-  const capped = Math.min(raw, subtotal.value);
+  const capped = Math.min(parsed, subtotal.value);
   form.discount = Math.round(capped * 100) / 100;
 };
 
@@ -1072,56 +1846,281 @@ const formatQty = (n: number) => {
 };
 
 const onPriceBlur = (item: { price: number }, event: FocusEvent) => {
-  const raw = (event.target as HTMLInputElement | null)?.value.trim() ?? "";
+  const raw = (event.target as HTMLInputElement | null)?.value?.trim() ?? "";
+  const newPrice = raw === "" ? 0 : Math.max(0, parseDecimal(raw));
 
-  let newPrice: number;
-  if (!raw) {
-    newPrice = 0;
-  } else {
-    const normalized = raw.replace(/,/g, ".");
-    const parsed = Number(normalized);
-    newPrice = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
-  }
-
-  // Update in nextTick to avoid re-render during blur and prevent focus/scroll jump
   nextTick(() => {
     item.price = newPrice;
   });
 };
 
 const onQtyBlur = (item: { quantity: number }, event: FocusEvent) => {
-  const raw = (event.target as HTMLInputElement | null)?.value.trim() ?? "";
+  const raw = (event.target as HTMLInputElement | null)?.value?.trim() ?? "";
   if (!raw) {
     nextTick(() => {
       item.quantity = 1;
     });
     return;
   }
-  const normalized = raw.replace(/,/g, ".");
-  const parsed = Number(normalized);
-  if (Number.isNaN(parsed) || parsed <= 0) {
+  const parsed = parseDecimal(raw);
+  if (parsed <= 0) {
     nextTick(() => {
       item.quantity = 1;
     });
     return;
   }
-  // Round to 2 decimals and clamp to 6 integer + 2 decimal digits (max 999999.99)
-  const clamped = Math.min(
-    999999.99,
-    Math.max(0.01, Math.round(parsed * 100) / 100),
-  );
+  const clamped = Math.min(999999.99, Math.max(0.01, parsed));
   nextTick(() => {
     item.quantity = clamped;
   });
 };
 
-const onSave = () => {
-  // TODO: connect to backend to save quote
-  toastStore.show(
-    "Cotización guardada (solo vista previa, sin backend).",
-    "info",
-  );
+const showSaveConfirmModal = ref(false);
+const showBackConfirmModal = ref(false);
+const savingQuote = ref(false);
+const lastSavedAtLabel = ref<string>("");
+/** Ruta a la que ir si el usuario confirma "No guardar" (desde guard de navegación o desde Volver). */
+const pendingLeaveTo = ref<string | null>(null);
+/** Evita que el guard vuelva a abrir el modal cuando ya hicimos router.push tras "No guardar". */
+const leaveConfirmed = ref(false);
+
+onBeforeRouteLeave((to, _from, next) => {
+  if (leaveConfirmed.value) {
+    next();
+    return;
+  }
+  if (!isDirty.value) {
+    next();
+    return;
+  }
+  pendingLeaveTo.value = to.fullPath;
+  showBackConfirmModal.value = true;
+  next(false);
+});
+
+function goBack() {
+  router.push("/cotizaciones");
+}
+
+function onBackClick() {
+  if (isDirty.value) {
+    pendingLeaveTo.value = "/cotizaciones";
+    showBackConfirmModal.value = true;
+  } else {
+    goBack();
+  }
+}
+
+function onBackConfirmCancel() {
+  showBackConfirmModal.value = false;
+  pendingLeaveTo.value = null;
+  leaveConfirmed.value = false;
+}
+
+function onBackWithoutSaving() {
+  showBackConfirmModal.value = false;
+  const target = pendingLeaveTo.value;
+  pendingLeaveTo.value = null;
+  quoteDraftStore.clearDraft();
+  leaveConfirmed.value = true;
+  if (target) {
+    router.push(target);
+  } else {
+    goBack();
+  }
+}
+
+async function onSaveAndBack() {
+  const name = (form.name ?? "").trim();
+  if (!name) {
+    toastStore.show("Ingresa al menos el nombre del cliente.", "error");
+    return;
+  }
+  if (items.length === 0) {
+    toastStore.show("Agrega al menos un producto a la cotización.", "error");
+    return;
+  }
+  try {
+    savingQuote.value = true;
+    await doSaveQuote();
+    lastSavedAtLabel.value = formatSavedAt(new Date());
+    isDirty.value = false;
+    showBackConfirmModal.value = false;
+    toastStore.show("Cotización guardada", "success");
+    const target = pendingLeaveTo.value;
+    pendingLeaveTo.value = null;
+    leaveConfirmed.value = true;
+    if (target) router.push(target);
+    else goBack();
+  } catch (err: any) {
+    toastStore.show(err?.message ?? "Error al guardar la cotización.", "error");
+  } finally {
+    savingQuote.value = false;
+  }
+}
+const quoteId = ref<string | null>(null);
+/** Set when loading a quote for edit; used to show "Última modificación" in the card header. */
+const quoteUpdatedAt = ref<Date | null>(null);
+
+function formatSavedAt(date: Date): string {
+  const raw = new Intl.DateTimeFormat("es-EC", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+  return raw.replace(",", "").replace(/\s+/g, " ").trim();
+}
+
+async function doSaveQuote() {
+  const name = (form.name || "").trim();
+  const payload = {
+    ...(selectedCustomerId.value
+      ? { customerId: selectedCustomerId.value }
+      : {}),
+    client: {
+      name,
+      document: form.document?.trim() || undefined,
+      phone: form.phone?.trim() || undefined,
+      email: form.email?.trim() || undefined,
+      address: form.address?.trim() || undefined,
+      directedTo: form.directedTo?.trim() || undefined,
+      reference: form.reference?.trim() || undefined,
+      project: form.project?.trim() || undefined,
+    },
+    items: items.map((i) => ({
+      id: i.id,
+      code: i.code,
+      name: i.name,
+      subtitle: i.subtitle ?? "",
+      quantity: parseDecimal(i.quantity),
+      price: parseDecimal(Number(i.price)),
+    })),
+    discount: parseDecimal(form.discount),
+    status: form.status || "pending",
+    validity: (form.validity ?? "").trim(),
+    deliveryPlace: form.deliveryPlace || "",
+    deliveryTime: (form.deliveryTime ?? "").trim(),
+    paymentMethod: (form.paymentMethod ?? "").trim(),
+    disclaimer: (form.disclaimer ?? "").trim(),
+    notes: (form.notes ?? "").trim(),
+  };
+  const result = quoteId.value
+    ? await api.put(`/api/quotes/${quoteId.value}`, payload)
+    : await api.post("/api/quotes", payload);
+
+  const savedId = result?.data?.id;
+  if (typeof savedId === "string" && savedId) {
+    quoteId.value = savedId;
+    const updated = parseQuoteUpdatedAt(result?.data?.updatedAt);
+    if (updated) quoteUpdatedAt.value = updated;
+    return savedId;
+  }
+  return null;
+}
+
+const onSave = async () => {
+  const name = (form.name || "").trim();
+  if (!name) {
+    toastStore.show("Ingresa al menos el nombre del cliente.", "error");
+    return;
+  }
+  if (items.length === 0) {
+    toastStore.show("Agrega al menos un producto a la cotización.", "error");
+    return;
+  }
+  if (hasClientChanges.value) {
+    showSaveConfirmModal.value = true;
+    return;
+  }
+  try {
+    savingQuote.value = true;
+    const wasNewQuote = !route.params.id;
+    const savedId = await doSaveQuote();
+    lastSavedAtLabel.value = formatSavedAt(new Date());
+    isDirty.value = false;
+    if (wasNewQuote && savedId) {
+      quoteDraftStore.clearDraft();
+      router.replace({ name: "EditQuote", params: { id: savedId } });
+      toastStore.show(
+        "Cotización creada. Ya puedes editarla o volver al listado.",
+        "success",
+      );
+    } else {
+      toastStore.show("Cotización guardada", "success");
+    }
+  } catch (err: any) {
+    toastStore.show(err?.message ?? "Error al guardar la cotización.", "error");
+  } finally {
+    savingQuote.value = false;
+  }
 };
+
+async function onSaveQuoteOnly() {
+  showSaveConfirmModal.value = false;
+  try {
+    savingQuote.value = true;
+    const wasNewQuote = !route.params.id;
+    const savedId = await doSaveQuote();
+    lastSavedAtLabel.value = formatSavedAt(new Date());
+    isDirty.value = false;
+    if (wasNewQuote && savedId) {
+      quoteDraftStore.clearDraft();
+      router.replace({ name: "EditQuote", params: { id: savedId } });
+      toastStore.show(
+        "Cotización creada. Ya puedes editarla o volver al listado.",
+        "success",
+      );
+    } else {
+      toastStore.show("Cotización guardada", "success");
+    }
+  } catch (err: any) {
+    toastStore.show(err?.message ?? "Error al guardar la cotización.", "error");
+  } finally {
+    savingQuote.value = false;
+  }
+}
+
+async function onSaveQuoteAndUpdateCustomer() {
+  if (!selectedCustomerId.value) return;
+  savingQuote.value = true;
+  showSaveConfirmModal.value = false;
+  try {
+    await api.put(`/api/customers/${selectedCustomerId.value}`, {
+      name: (form.name ?? "").trim(),
+      document: (form.document ?? "").trim(),
+      phone: (form.phone ?? "").trim(),
+      email: (form.email ?? "").trim(),
+      address: (form.address ?? "").trim(),
+    });
+    const name = (form.name ?? "").trim();
+    const document = (form.document ?? "").trim();
+    const phone = (form.phone ?? "").trim();
+    const email = (form.email ?? "").trim();
+    const address = (form.address ?? "").trim();
+    originalClient.value = { name, document, phone, email, address };
+    const wasNewQuote = !route.params.id;
+    const savedId = await doSaveQuote();
+    lastSavedAtLabel.value = formatSavedAt(new Date());
+    isDirty.value = false;
+    if (wasNewQuote && savedId) {
+      quoteDraftStore.clearDraft();
+      router.replace({ name: "EditQuote", params: { id: savedId } });
+      toastStore.show(
+        "Cotización creada. Ya puedes editarla o volver al listado.",
+        "success",
+      );
+    } else {
+      toastStore.show("Cotización guardada", "success");
+    }
+  } catch (err: any) {
+    toastStore.show(err?.message ?? "Error al guardar.", "error");
+  } finally {
+    savingQuote.value = false;
+  }
+}
 
 const onExportPdf = async () => {
   if (!pdfRef.value) return;
@@ -1161,11 +2160,58 @@ const onExportPdf = async () => {
   gap: 1.25rem;
 }
 
+.quote-form-back {
+  margin: -0.25rem 0 0 0;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-size: 0.9rem;
+  color: #64748b;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.back-link:hover {
+  color: #0f9f70;
+}
+
+.back-link:focus-visible {
+  color: #0f9f70;
+  background-color: rgba(15, 159, 112, 0.08);
+  box-shadow: 0 0 0 2px #0f9f70;
+}
+
+.back-link:active {
+  color: #0c7a57;
+  background-color: rgba(15, 159, 112, 0.12);
+}
+
+.back-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .quote-form-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.quote-form-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .quote-form-header h1 {
@@ -1175,20 +2221,174 @@ const onExportPdf = async () => {
 }
 
 .quote-form-header p {
-  margin: 0.25rem 0 0 0;
+  margin: 0;
   font-size: 0.95rem;
   color: #64748b;
 }
 
+.quote-form-meta {
+  margin: 0.4rem 0 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Badge de estado con dropdown (en card header Cliente, solo edición) */
+.card-header .status-badge-wrap {
+  position: relative;
+  align-self: center;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.status-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-badge--pending {
+  background: rgba(234, 179, 8, 0.15);
+  color: #b45309;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+.status-badge--pending .status-badge-dot {
+  background: #b45309;
+}
+
+.status-badge--accepted {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.status-badge--accepted .status-badge-dot {
+  background: #15803d;
+}
+
+.status-badge--rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.status-badge--rejected .status-badge-dot {
+  background: #b91c1c;
+}
+
+.status-badge-chevron {
+  font-size: 0.55rem;
+  opacity: 0.8;
+}
+
+.status-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  min-width: 140px;
+  padding: 0.35rem;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e2e8f0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.status-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.status-dropdown-option:hover {
+  background: #f1f5f9;
+}
+
+.status-dropdown-option--pending .status-option-dot {
+  background: #b45309;
+}
+.status-dropdown-option--accepted .status-option-dot {
+  background: #15803d;
+}
+.status-dropdown-option--rejected .status-option-dot {
+  background: #b91c1c;
+}
+
+.status-option-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 .quote-form-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.quote-form-header-actions-buttons {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
+.quote-form-header-actions .ghost-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.quote-form-header-actions .icon-trash {
+  flex-shrink: 0;
+}
+
 .ghost-button {
   padding: 0.6rem 1rem;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #0f172a;
@@ -1207,6 +2407,19 @@ const onExportPdf = async () => {
   transform: translateY(-1px);
 }
 
+/* Ghost danger: mismo estilo ghost pero con rojo suave */
+.ghost-button--danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.ghost-button--danger:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
 .card {
   background: #ffffff;
   border-radius: 16px;
@@ -1220,8 +2433,28 @@ const onExportPdf = async () => {
 }
 
 .card-header {
-  padding: 1rem 1.5rem;
+  padding: 1rem 1.5rem 1.25rem 1.5rem;
   border-bottom: 1px solid #e2e8f0;
+}
+
+.card-header--with-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.card-header-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-style: italic;
 }
 
 .card-title {
@@ -1229,6 +2462,13 @@ const onExportPdf = async () => {
   font-size: 1rem;
   font-weight: 600;
   color: #0f172a;
+}
+
+.card-meta {
+  font-size: 0.85rem;
+  color: #64748b;
+  white-space: nowrap;
+  font-style: italic;
 }
 
 .card-body {
@@ -1242,6 +2482,75 @@ const onExportPdf = async () => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.9rem;
+}
+
+.form-row--actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+
+.form-row--update-client {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.update-client-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  max-width: 100%;
+  text-align: right;
+}
+
+.btn-update-client {
+  padding: 0.6rem 1.25rem;
+  border-radius: 999px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.1s ease-out;
+}
+
+.btn-update-client:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-update-client:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-create-client {
+  padding: 0.6rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid #0f9f70;
+  background: transparent;
+  color: #0f9f70;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.btn-create-client:hover:not(:disabled) {
+  background: #0f9f70;
+  color: #fff;
+}
+
+.btn-create-client:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .field {
@@ -1634,8 +2943,114 @@ input[type="number"] {
 
 .actions-row {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.actions-left {
+  flex: 1;
+  min-width: 240px;
+}
+
+.actions-right {
+  display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.12);
+  color: #1e3a8a;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.primary-action {
+  padding: 0.7rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background: #0f9f70;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 650;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  box-shadow: 0 10px 22px rgba(15, 159, 112, 0.32);
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease-out;
+}
+
+.primary-action:hover:not(:disabled) {
+  background: #0c7a57;
+  box-shadow: 0 12px 26px rgba(15, 159, 112, 0.42);
+  transform: translateY(-1px);
+}
+
+.primary-action:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(15, 159, 112, 0.25),
+    0 10px 22px rgba(15, 159, 112, 0.32);
+}
+
+.primary-action:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondary-action {
+  padding: 0.7rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 159, 112, 0.35);
+  background: #ffffff;
+  color: #0c7a57;
+  font-size: 0.95rem;
+  font-weight: 650;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease-out,
+    box-shadow 0.2s ease;
+}
+
+.secondary-action:hover:not(:disabled) {
+  background: rgba(15, 159, 112, 0.08);
+  border-color: rgba(15, 159, 112, 0.55);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+}
+
+.secondary-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(15, 159, 112, 0.18);
+}
+
+.secondary-action:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Layout PDF (A4) */

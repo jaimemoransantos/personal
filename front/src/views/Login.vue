@@ -50,11 +50,12 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "../stores/index";
 import { useToastStore } from "../stores/toast";
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 const toastStore = useToastStore();
 const { loading, loginWithEmail, clearError } = userStore;
@@ -68,7 +69,14 @@ watch(
   (authenticated) => {
     if (authenticated) {
       toastStore.show("Inicio de sesión correcto. ¡Bienvenido!", "success");
-      router.push("/inicio");
+      const redirect = route.query.redirect;
+      const path =
+        typeof redirect === "string" &&
+        redirect.startsWith("/") &&
+        !redirect.startsWith("//")
+          ? redirect
+          : "/inicio";
+      router.push(path);
     }
   }
 );

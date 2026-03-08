@@ -38,6 +38,11 @@ const router = createRouter({
           component: NewQuote,
         },
         {
+          path: "cotizaciones/editar/:id",
+          name: "EditQuote",
+          component: NewQuote,
+        },
+        {
           path: "clientes",
           name: "Customers",
           component: Clientes,
@@ -56,15 +61,29 @@ const router = createRouter({
   ],
 });
 
-// Navigation guard: protect routes that require authentication
+// Navigation guard: protect routes that require authentication.
+// If auth is not ready yet (e.g. after refresh), allow navigation and let App show loader
+// until session is restored; only redirect to login when authReady and user is missing.
 router.beforeEach((to, _from, next) => {
   const userStore = useUserStore();
   const isAuthenticated = userStore.isAuthenticated;
+  const authReady = userStore.authReady;
 
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next("/login");
+    if (!authReady) {
+      next(); // stay on requested URL; App shows loader until auth is resolved
+    } else {
+      next({ path: "/login", query: { redirect: to.fullPath } });
+    }
   } else if (to.path === "/login" && isAuthenticated) {
-    next("/inicio");
+    const redirect = to.query.redirect;
+    const path =
+      typeof redirect === "string" &&
+      redirect.startsWith("/") &&
+      !redirect.startsWith("//")
+        ? redirect
+        : "/inicio";
+    next(path);
   } else {
     next();
   }
