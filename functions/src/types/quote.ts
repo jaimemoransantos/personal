@@ -40,6 +40,8 @@ export interface Quote {
   client: QuoteClient;
   items: QuoteItem[];
   discount: number;
+  /** Human-readable sequential number, e.g. 2026000079. */
+  quoteNumber?: string;
   /** Status of the quote. Default "pending". */
   status?: QuoteStatus;
   /**

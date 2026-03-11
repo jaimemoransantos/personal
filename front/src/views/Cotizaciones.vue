@@ -64,9 +64,13 @@
           v-for="quote in filteredQuotes"
           :key="quote.id"
           class="quote-item"
+          :class="{ 'menu-open': openMenuId === quote.id }"
           @click="openQuote(quote)"
         >
           <div class="quote-main">
+            <p class="quote-number" v-if="quote.quoteNumber">
+              {{ quote.quoteNumber }}
+            </p>
             <p class="quote-title">{{ quote.title }}</p>
             <p class="quote-client">{{ quote.client }}</p>
             <p v-if="quote.reference || quote.project" class="quote-ref">
@@ -76,53 +80,102 @@
             </p>
           </div>
           <div class="quote-meta">
-            <span class="quote-amount">{{ quote.amount }}</span>
-            <span class="quote-status" :class="`quote-status--${quote.status}`">
-              {{ quote.statusLabel }}
-            </span>
-            <div class="quote-menu-wrap" @click.stop>
+            <div class="status-badge-wrap" @click.stop>
               <button
                 type="button"
-                class="quote-menu-btn"
-                :aria-expanded="openMenuId === quote.id"
-                aria-haspopup="true"
-                aria-label="Abrir menú"
-                @click="toggleMenu(quote.id)"
+                class="status-badge"
+                :class="`status-badge--${quote.status}`"
+                aria-haspopup="listbox"
+                :aria-expanded="openStatusId === quote.id"
+                @click="toggleStatusDropdown(quote.id)"
               >
-                <span class="quote-menu-dots" aria-hidden="true">⋯</span>
+                <span class="status-badge-dot" aria-hidden="true"></span>
+                {{ quote.statusLabel }}
+                <span class="status-badge-chevron" aria-hidden="true">▼</span>
               </button>
-              <div
-                v-if="openMenuId === quote.id"
-                class="quote-menu-dropdown"
-                role="menu"
-              >
-                <button
-                  type="button"
-                  class="quote-menu-option"
-                  role="menuitem"
-                  @click="onEdit(quote)"
+              <transition name="dropdown-fade">
+                <div
+                  v-show="openStatusId === quote.id"
+                  class="status-dropdown"
+                  role="listbox"
                 >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  class="quote-menu-option"
-                  role="menuitem"
-                  :disabled="pdfDownloading"
-                  @click="onDownloadPdf(quote)"
-                >
-                  {{ pdfDownloading ? "Descargando…" : "Descargar PDF" }}
-                </button>
-                <button
-                  type="button"
-                  class="quote-menu-option quote-menu-option--danger"
-                  role="menuitem"
-                  @click="onDelete(quote)"
-                >
-                  Eliminar
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="quote.status === 'pending'"
+                    class="status-dropdown-option status-dropdown-option--pending"
+                    @click="onChangeStatus(quote, 'pending')"
+                  >
+                    <span class="status-option-dot"></span>
+                    Pendiente
+                  </button>
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="quote.status === 'accepted'"
+                    class="status-dropdown-option status-dropdown-option--accepted"
+                    @click="onChangeStatus(quote, 'accepted')"
+                  >
+                    <span class="status-option-dot"></span>
+                    Aceptada
+                  </button>
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="quote.status === 'rejected'"
+                    class="status-dropdown-option status-dropdown-option--rejected"
+                    @click="onChangeStatus(quote, 'rejected')"
+                  >
+                    <span class="status-option-dot"></span>
+                    Rechazada
+                  </button>
+                </div>
+              </transition>
             </div>
+            <div class="quote-menu-wrap" @click.stop>
+                <button
+                  type="button"
+                  class="quote-menu-btn"
+                  :aria-expanded="openMenuId === quote.id"
+                  aria-haspopup="true"
+                  aria-label="Abrir menú"
+                  @click="toggleMenu(quote.id)"
+                >
+                  <span class="quote-menu-dots" aria-hidden="true">⋯</span>
+                </button>
+                <div
+                  v-if="openMenuId === quote.id"
+                  class="quote-menu-dropdown"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    class="quote-menu-option"
+                    role="menuitem"
+                    @click="onEdit(quote)"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    class="quote-menu-option"
+                    role="menuitem"
+                    :disabled="pdfDownloading"
+                    @click="onDownloadPdf(quote)"
+                  >
+                    {{ pdfDownloading ? "Descargando…" : "Descargar PDF" }}
+                  </button>
+                  <button
+                    type="button"
+                    class="quote-menu-option quote-menu-option--danger"
+                    role="menuitem"
+                    @click="onDelete(quote)"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            <span class="quote-amount">{{ quote.amount }}</span>
           </div>
         </li>
       </ul>
@@ -174,7 +227,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useRouter } from "vue-router";
 import html2pdf from "html2pdf.js";
 import { useApi } from "../composables/useApi";
@@ -192,6 +245,7 @@ const toast = useToastStore();
 const organizationStore = useOrganizationStore();
 const searchQuery = ref("");
 const openMenuId = ref<string | null>(null);
+const openStatusId = ref<string | null>(null);
 const showDeleteModal = ref(false);
 const quoteToDelete = ref<QuoteRow | null>(null);
 const deleting = ref(false);
@@ -206,6 +260,25 @@ function toggleMenu(quoteId: string) {
 function closeMenu() {
   openMenuId.value = null;
 }
+
+function onStatusDropdownClickOutside(event: MouseEvent) {
+  if (
+    openStatusId.value &&
+    !(event.target as Element)?.closest(".status-badge-wrap")
+  ) {
+    openStatusId.value = null;
+  }
+}
+
+watch(openStatusId, (open: string | null) => {
+  if (open) {
+    setTimeout(() => {
+      document.addEventListener("click", onStatusDropdownClickOutside);
+    }, 0);
+  } else {
+    document.removeEventListener("click", onStatusDropdownClickOutside);
+  }
+});
 
 function handleClickOutside(event: MouseEvent) {
   if (
@@ -227,6 +300,7 @@ type QuoteItem = {
 
 type QuoteFromApi = {
   id: string;
+  quoteNumber?: string;
   client: {
     name?: string;
     document?: string;
@@ -241,6 +315,7 @@ type QuoteFromApi = {
 
 type QuoteRow = {
   id: string;
+  quoteNumber: string;
   title: string;
   client: string;
   reference: string;
@@ -269,6 +344,7 @@ function mapQuoteToRow(q: QuoteFromApi): QuoteRow {
     q.status && QUOTE_STATUS_LABELS[q.status] ? q.status : "pending";
   return {
     id: q.id,
+    quoteNumber: q.quoteNumber ?? "",
     title,
     client: q.client?.name ?? "—",
     reference: ref,
@@ -307,6 +383,7 @@ const filteredQuotes = computed(() => {
   if (!q) return quotes.value;
   return quotes.value.filter(
     (quote) =>
+      (quote.quoteNumber && quote.quoteNumber.toLowerCase().includes(q)) ||
       quote.title.toLowerCase().includes(q) ||
       quote.client.toLowerCase().includes(q) ||
       quote.reference.toLowerCase().includes(q) ||
@@ -323,6 +400,57 @@ function onEdit(quote: QuoteRow) {
   router.push({ name: "EditQuote", params: { id: quote.id } });
 }
 
+function toggleStatusDropdown(quoteId: string) {
+  openStatusId.value = openStatusId.value === quoteId ? null : quoteId;
+}
+
+async function onChangeStatus(
+  quote: QuoteRow,
+  newStatus: "pending" | "accepted" | "rejected",
+) {
+  if (quote.status === newStatus) {
+    openStatusId.value = null;
+    return;
+  }
+
+  const oldStatus = quote.status;
+  const oldLabel = quote.statusLabel;
+  const newLabel = QUOTE_STATUS_LABELS[newStatus] ?? newStatus;
+
+  // Optimistic update
+  quotes.value = quotes.value.map((q) =>
+    q.id === quote.id ? { ...q, status: newStatus, statusLabel: newLabel } : q,
+  );
+  openStatusId.value = null;
+
+  try {
+    await api.put(`/api/quotes/${quote.id}`, { status: newStatus });
+
+    // Fetch fresh quote from backend to stay fully in sync
+    const res = await api.get(`/api/quotes/${quote.id}`);
+    const body = res != null ? res : undefined;
+    const data =
+      body && typeof body === "object" && "data" in body && body.data != null
+        ? (body as { data: unknown }).data
+        : body;
+    const freshQuote = data as QuoteFromApi;
+    const freshRow = mapQuoteToRow(freshQuote);
+
+    quotes.value = quotes.value.map((q) =>
+      q.id === freshRow.id ? freshRow : q,
+    );
+  } catch (err: any) {
+    // Revert on error
+    quotes.value = quotes.value.map((q) =>
+      q.id === quote.id ? { ...q, status: oldStatus, statusLabel: oldLabel } : q,
+    );
+    toast.show(
+      err?.message ?? "No se pudo actualizar el estado.",
+      "error",
+    );
+  }
+}
+
 async function onDownloadPdf(quote: QuoteRow) {
   closeMenu();
   pdfDownloading.value = true;
@@ -335,6 +463,7 @@ async function onDownloadPdf(quote: QuoteRow) {
         ? (body as { data: unknown }).data
         : body;
     const quoteData = data as {
+      quoteNumber?: string;
       client?: {
         name?: string;
         document?: string;
@@ -370,6 +499,7 @@ async function onDownloadPdf(quote: QuoteRow) {
         client: quoteData.client,
         items: quoteData.items,
         discount: Number(quoteData.discount) ?? 0,
+        quoteNumber: quoteData.quoteNumber,
         validity: quoteData.validity,
         deliveryPlace: quoteData.deliveryPlace,
         deliveryTime: quoteData.deliveryTime,
@@ -632,6 +762,7 @@ onUnmounted(() => {
 }
 
 .quote-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -655,8 +786,22 @@ onUnmounted(() => {
   min-width: 0;
 }
 
+.quote-number {
+  display: inline-block;
+  width: auto;
+  margin: 0.05rem 0 0.3rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #e5edff;
+  border-radius: 999px;
+  padding: 0.2rem 0.8rem;
+  flex-shrink: 0;
+}
+
 .quote-title {
   margin: 0;
+  padding-left: 0.35rem;
   font-size: 1rem;
   font-weight: 500;
   color: #0f172a;
@@ -664,25 +809,36 @@ onUnmounted(() => {
 
 .quote-client {
   margin: 0.25rem 0 0 0;
+  padding-left: 0.35rem;
   font-size: 0.85rem;
   color: #64748b;
 }
 
 .quote-ref {
   margin: 0.2rem 0 0 0;
+  padding-left: 0.35rem;
   font-size: 0.8rem;
   color: #94a3b8;
 }
 
 .quote-meta {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  align-self: stretch;
   flex-shrink: 0;
 }
 
 .quote-menu-wrap {
   position: relative;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.quote-item:hover .quote-menu-wrap,
+.quote-item.menu-open .quote-menu-wrap {
+  opacity: 1;
 }
 
 .quote-menu-btn {
@@ -756,11 +912,133 @@ onUnmounted(() => {
   color: #053f51;
 }
 
-.quote-status {
-  font-size: 0.8rem;
-  padding: 0.25rem 0.6rem;
+/* Status badge / dropdown – same look as Edit view */
+.status-badge-wrap {
+  position: relative;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.status-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-badge--pending {
+  background: rgba(234, 179, 8, 0.15);
+  color: #b45309;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+.status-badge--pending .status-badge-dot {
+  background: #b45309;
+}
+
+.status-badge--accepted {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.status-badge--accepted .status-badge-dot {
+  background: #15803d;
+}
+
+.status-badge--rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.status-badge--rejected .status-badge-dot {
+  background: #b91c1c;
+}
+
+.status-badge-chevron {
+  font-size: 0.55rem;
+  opacity: 0.8;
+}
+
+.status-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  min-width: 140px;
+  padding: 0.35rem;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e2e8f0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.status-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.85rem;
   font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.status-dropdown-option:hover {
+  background: #f1f5f9;
+}
+
+.status-dropdown-option--pending .status-option-dot {
+  background: #b45309;
+}
+.status-dropdown-option--accepted .status-option-dot {
+  background: #15803d;
+}
+.status-dropdown-option--rejected .status-option-dot {
+  background: #b91c1c;
+}
+
+.status-option-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-2px);
 }
 
 .quote-status--pending {
@@ -823,7 +1101,7 @@ onUnmounted(() => {
 
   .quote-meta {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
   }
 }
 </style>

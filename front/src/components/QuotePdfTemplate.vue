@@ -11,11 +11,12 @@
     </header>
 
     <div class="pdf-content">
-      <section class="pdf-client">
-        <div class="pdf-row">
-          <span class="pdf-label">Cliente:</span>
-          <span class="pdf-value">{{ client.name || "—" }}</span>
-        </div>
+      <div class="pdf-client-row">
+        <section class="pdf-client">
+          <div class="pdf-row">
+            <span class="pdf-label">Cliente:</span>
+            <span class="pdf-value">{{ client.name || "—" }}</span>
+          </div>
         <div class="pdf-row">
           <span class="pdf-label">RUC / CI:</span>
           <span class="pdf-value">{{ client.document || "—" }}</span>
@@ -28,19 +29,25 @@
           <span class="pdf-label">Teléfono:</span>
           <span class="pdf-value">{{ client.phone || "—" }}</span>
         </div>
-        <div class="pdf-row">
-          <span class="pdf-label">Dirección:</span>
-          <span class="pdf-value">{{ client.address || "—" }}</span>
+          <div class="pdf-row">
+            <span class="pdf-label">Dirección:</span>
+            <span class="pdf-value">{{ client.address || "—" }}</span>
+          </div>
+          <div v-if="client.directedTo" class="pdf-row">
+            <span class="pdf-label">Dirigida a:</span>
+            <span class="pdf-value">{{ client.directedTo }}</span>
+          </div>
+          <div v-if="client.project" class="pdf-row">
+            <span class="pdf-label">Proyecto:</span>
+            <span class="pdf-value">{{ client.project }}</span>
+          </div>
+        </section>
+
+        <div v-if="quote.quoteNumber" class="pdf-quote-number-box">
+          <span class="pdf-quote-number-label">Nro.</span>
+          <span class="pdf-quote-number-value">{{ quote.quoteNumber }}</span>
         </div>
-        <div v-if="client.directedTo" class="pdf-row">
-          <span class="pdf-label">Dirigida a:</span>
-          <span class="pdf-value">{{ client.directedTo }}</span>
-        </div>
-        <div v-if="client.project" class="pdf-row">
-          <span class="pdf-label">Proyecto:</span>
-          <span class="pdf-value">{{ client.project }}</span>
-        </div>
-      </section>
+      </div>
 
       <section v-if="items.length" class="pdf-table-section">
         <table class="pdf-table">
@@ -115,13 +122,13 @@
         <h2 class="pdf-notes-title">Forma de pago</h2>
         <p class="pdf-notes-text">{{ quote.paymentMethod }}</p>
       </section>
-      <section v-if="quote.disclaimer" class="pdf-notes">
-        <h2 class="pdf-notes-title">Aclaraciones</h2>
-        <p class="pdf-notes-text">{{ quote.disclaimer }}</p>
-      </section>
       <section v-if="quote.notes" class="pdf-notes">
         <h2 class="pdf-notes-title">Notas</h2>
         <p class="pdf-notes-text">{{ quote.notes }}</p>
+      </section>
+      <section v-if="quote.disclaimer" class="pdf-notes">
+        <h2 class="pdf-notes-title">Aclaraciones</h2>
+        <p class="pdf-notes-text">{{ quote.disclaimer }}</p>
       </section>
     </div>
 
@@ -184,6 +191,7 @@ export interface QuotePdfPayload {
     client: QuotePdfClient;
     items: QuotePdfItem[];
     discount: number;
+    quoteNumber?: string;
     validity?: string;
     deliveryPlace?: string;
     deliveryTime?: string;
@@ -313,6 +321,37 @@ function formatPhone(phone: string | undefined): string {
 .pdf-logo {
   max-width: 90px;
   height: auto;
+}
+
+.pdf-client-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8mm;
+  margin-bottom: 8mm;
+}
+
+.pdf-client {
+  flex: 1;
+}
+
+.pdf-quote-number-box {
+  align-self: flex-start;
+  text-align: right;
+  font-size: 11px;
+}
+
+.pdf-quote-number-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 1mm;
+}
+
+.pdf-quote-number-value {
+  display: inline-block;
+  padding: 1mm 3mm;
+  border-radius: 999px;
+  background: #e5edff;
+  font-weight: 600;
 }
 
 .pdf-client {

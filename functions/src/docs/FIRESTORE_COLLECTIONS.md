@@ -72,6 +72,7 @@ Quote documents. Query with `where("organizationId", "==", orgId)`. Create via P
 | Field          | Type     | Description        |
 |----------------|----------|--------------------|
 | **organizationId** | string | Required; tenant   |
+| quoteNumber    | string?  | Número secuencial legible, p.ej. 2026000079 (año + contador por organización) |
 | customerId     | string?  | Id of customer doc when quote was created from an existing client (optional) |
 | client         | map      | name (required), document, phone, email, address, directedTo, reference, project (all optional) |
 | items          | array    | { id, code, name, subtitle, quantity, price } |
@@ -87,6 +88,16 @@ Quote documents. Query with `where("organizationId", "==", orgId)`. Create via P
 | createdAt      | timestamp|                    |
 | updatedAt      | timestamp|                    |
 | createdBy      | string?  | Firebase Auth uid  |
+
+### `quoteCounters`
+Contadores por organización y año para generar números de cotización secuenciales de forma atómica.
+
+| Field          | Type     | Description        |
+|----------------|----------|--------------------|
+| **organizationId** | string | Tenant al que pertenece el contador |
+| year           | number   | Año (por ejemplo 2026) |
+| current        | number   | Último número usado para ese año/org |
+| updatedAt      | timestamp| Última actualización del contador |
 
 ### Future: organization settings
 A separate collection keyed by org id (e.g. `organizationSettings/{organizationId}`) can hold per-org config; no `settings` field on the organization document.

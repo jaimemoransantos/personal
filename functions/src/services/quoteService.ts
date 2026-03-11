@@ -5,6 +5,7 @@ import { ApiError } from "../utils/errors";
 import { CustomerService } from "./customerService";
 
 const QUOTES_COLLECTION = "quotes";
+const QUOTE_COUNTERS_COLLECTION = "quoteCounters";
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -33,6 +34,52 @@ function buildSearchTerms(client: QuoteClient): string {
     client.document,
   ].filter((s): s is string => typeof s === "string" && s.trim() !== "");
   return parts.join(" ").toLowerCase().trim();
+}
+
+/**
+ * Atomically obtain the next sequential quote number for an organization and year.
+ *
+ * Format: `${year}${sequencePadded}`, e.g. 2026000079.
+ * - year: current UTC year (e.g. 2026)
+ * - sequence: per-organization counter for that year (starting at 79 in 2026 per current requirement)
+ */
+async function getNextQuoteNumber(organizationId: string): Promise<string> {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const counterId = `${organizationId}_${year}`;
+  const counterRef = db.collection(QUOTE_COUNTERS_COLLECTION).doc(counterId);
+
+  const snapshot = await db.runTransaction(async (tx) => {
+    const doc = await tx.get(counterRef);
+    let current = 0;
+
+    if (!doc.exists) {
+      // Start at 78 so the first generated number will be 79 in this year.
+      // For future years, you can adjust this initial value if needed.
+      current = 78;
+      tx.set(counterRef, {
+        organizationId,
+        year,
+        current,
+        updatedAt: Timestamp.now(),
+      });
+    } else {
+      const data = doc.data() as { current?: number };
+      current = typeof data.current === "number" ? data.current : 0;
+    }
+
+    const next = current + 1;
+
+    tx.update(counterRef, {
+      current: next,
+      updatedAt: Timestamp.now(),
+    });
+
+    return { year, sequence: next };
+  });
+
+  const sequencePadded = String(snapshot.sequence).padStart(6, "0");
+  return `${snapshot.year}${sequencePadded}`;
 }
 
 export class QuoteService {
@@ -136,6 +183,9 @@ export class QuoteService {
     const subtotal = computeSubtotal(data.items || []);
     const appliedDiscount = clampDiscount(data.discount, subtotal);
     const amount = round2(Math.max(0, subtotal - appliedDiscount));
+
+    const quoteNumber = await getNextQuoteNumber(organizationId);
+
     const quote: Omit<Quote, "id"> = {
       organizationId,
       ...(customerId ? { customerId } : {}),
@@ -144,6 +194,7 @@ export class QuoteService {
       subtotal,
       discount: appliedDiscount,
       amount,
+      quoteNumber,
       status: data.status ?? "pending",
       searchTerms: buildSearchTerms(data.client),
       validity: data.validity ?? "",

@@ -515,6 +515,16 @@
             />
           </label>
         </div>
+        <div class="form-row notes-row">
+          <label class="field full">
+            <span class="field-label">Notas</span>
+            <textarea
+              v-model="form.notes"
+              rows="3"
+              placeholder="Notas internas o aclaraciones para el cliente..."
+            />
+          </label>
+        </div>
         <div class="form-row">
           <label class="field full">
             <span class="field-label">
@@ -525,16 +535,6 @@
               v-model="form.disclaimer"
               rows="2"
               placeholder="Ej: Sujeto a cambios en impuestos, aranceles de importación, tipo de cambio u otros factores."
-            />
-          </label>
-        </div>
-        <div class="form-row notes-row">
-          <label class="field full">
-            <span class="field-label">Notas</span>
-            <textarea
-              v-model="form.notes"
-              rows="3"
-              placeholder="Notas internas o aclaraciones para el cliente..."
             />
           </label>
         </div>
