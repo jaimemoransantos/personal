@@ -11,7 +11,9 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-function computeSubtotal(items: { quantity: number; price: number }[] = []): number {
+function computeSubtotal(
+  items: { quantity: number; price: number }[] = [],
+): number {
   const subtotal = items.reduce((sum, it) => {
     const q = Number(it.quantity) || 0;
     const p = Number(it.price) || 0;
@@ -54,9 +56,9 @@ async function getNextQuoteNumber(organizationId: string): Promise<string> {
     let current = 0;
 
     if (!doc.exists) {
-      // Start at 78 so the first generated number will be 79 in this year.
+      // Start at 0 so the first generated number will be 0 in this year.
       // For future years, you can adjust this initial value if needed.
-      current = 78;
+      current = 0;
       tx.set(counterRef, {
         organizationId,
         year,
@@ -84,7 +86,7 @@ async function getNextQuoteNumber(organizationId: string): Promise<string> {
 
 export class QuoteService {
   static async list(
-    organizationId: string
+    organizationId: string,
   ): Promise<(Quote & { id: string })[]> {
     const snapshot = await db
       .collection(QUOTES_COLLECTION)
@@ -129,7 +131,7 @@ export class QuoteService {
 
   static async getById(
     organizationId: string,
-    quoteId: string
+    quoteId: string,
   ): Promise<(Quote & { id: string }) | null> {
     const doc = await db.collection(QUOTES_COLLECTION).doc(quoteId).get();
     if (!doc.exists) return null;
@@ -168,13 +170,13 @@ export class QuoteService {
   static async create(
     organizationId: string,
     data: CreateQuoteData,
-    createdBy?: string
+    createdBy?: string,
   ): Promise<Quote & { id: string }> {
     let customerId = data.customerId ?? undefined;
     if (!customerId && data.client?.document?.trim()) {
       const found = await CustomerService.findIdByDocument(
         organizationId,
-        data.client.document
+        data.client.document,
       );
       if (found) customerId = found;
     }
@@ -215,7 +217,7 @@ export class QuoteService {
   static async update(
     organizationId: string,
     quoteId: string,
-    data: Partial<CreateQuoteData>
+    data: Partial<CreateQuoteData>,
   ): Promise<Quote & { id: string }> {
     const ref = db.collection(QUOTES_COLLECTION).doc(quoteId);
     const doc = await ref.get();
@@ -254,7 +256,7 @@ export class QuoteService {
     ) {
       const found = await CustomerService.findIdByDocument(
         organizationId,
-        client.document
+        client.document,
       );
       if (found) updatePayload.customerId = found;
     }
@@ -263,10 +265,7 @@ export class QuoteService {
     return { id: updated.id, ...updated.data() } as Quote & { id: string };
   }
 
-  static async delete(
-    organizationId: string,
-    quoteId: string
-  ): Promise<void> {
+  static async delete(organizationId: string, quoteId: string): Promise<void> {
     const ref = db.collection(QUOTES_COLLECTION).doc(quoteId);
     const doc = await ref.get();
     if (!doc.exists) {
