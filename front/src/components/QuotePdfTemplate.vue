@@ -43,9 +43,9 @@
           </div>
         </section>
 
-        <div v-if="quote.quoteNumber" class="pdf-quote-number-box">
-          <span class="pdf-quote-number-label">Nro.</span>
-          <span class="pdf-quote-number-value">{{ quote.quoteNumber }}</span>
+        <div v-if="quote.quoteNumber || quote.quoteDate" class="pdf-quote-number-box">
+          <div v-if="quote.quoteNumber">Nro. {{ quote.quoteNumber }}</div>
+          <div v-if="quote.quoteDate" class="pdf-quote-date">{{ quote.quoteDate }}</div>
         </div>
       </div>
 
@@ -192,6 +192,8 @@ export interface QuotePdfPayload {
     items: QuotePdfItem[];
     discount: number;
     quoteNumber?: string;
+    /** Fecha formateada para mostrar en el PDF (ej. "7 de marzo de 2026"). */
+    quoteDate?: string;
     validity?: string;
     deliveryPlace?: string;
     deliveryTime?: string;
@@ -338,20 +340,13 @@ function formatPhone(phone: string | undefined): string {
   align-self: flex-start;
   text-align: right;
   font-size: 11px;
+  font-weight: 600;
 }
 
-.pdf-quote-number-label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 1mm;
-}
-
-.pdf-quote-number-value {
-  display: inline-block;
-  padding: 1mm 3mm;
-  border-radius: 999px;
-  background: #e5edff;
-  font-weight: 600;
+.pdf-quote-date {
+  margin-top: 2mm;
+  font-weight: 400;
+  font-size: 10px;
 }
 
 .pdf-client {
@@ -459,6 +454,7 @@ function formatPhone(phone: string | undefined): string {
 
 .pdf-notes-text {
   margin: 0;
+  white-space: pre-line;
 }
 
 .pdf-footer {

@@ -253,6 +253,31 @@ const pdfContainerRef = ref<HTMLElement | null>(null);
 const pdfDownloadPayload = ref<QuotePdfPayload | null>(null);
 const pdfDownloading = ref(false);
 
+function formatQuoteDateForPdf(raw: unknown): string {
+  if (!raw) return "";
+  let date: Date;
+  if (typeof raw === "string") {
+    date = new Date(raw);
+  } else if (
+    typeof raw === "object" &&
+    raw !== null &&
+    (typeof (raw as { seconds?: number }).seconds === "number" ||
+      typeof (raw as { _seconds?: number })._seconds === "number")
+  ) {
+    const sec =
+      (raw as { seconds?: number }).seconds ??
+      (raw as { _seconds?: number })._seconds;
+    date = new Date((sec ?? 0) * 1000);
+  } else {
+    return "";
+  }
+  if (Number.isNaN(date.getTime())) return "";
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(date.getFullYear());
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 function toggleMenu(quoteId: string) {
   openMenuId.value = openMenuId.value === quoteId ? null : quoteId;
 }
@@ -464,6 +489,7 @@ async function onDownloadPdf(quote: QuoteRow) {
         : body;
     const quoteData = data as {
       quoteNumber?: string;
+      updatedAt?: unknown;
       client?: {
         name?: string;
         document?: string;
@@ -494,12 +520,14 @@ async function onDownloadPdf(quote: QuoteRow) {
       toast.show("No se pudo cargar la cotización para el PDF.", "error");
       return;
     }
+    const quoteDateFormatted = formatQuoteDateForPdf(quoteData.updatedAt);
     const payload: QuotePdfPayload = {
       quote: {
         client: quoteData.client,
         items: quoteData.items,
         discount: Number(quoteData.discount) ?? 0,
         quoteNumber: quoteData.quoteNumber,
+        quoteDate: quoteDateFormatted || undefined,
         validity: quoteData.validity,
         deliveryPlace: quoteData.deliveryPlace,
         deliveryTime: quoteData.deliveryTime,

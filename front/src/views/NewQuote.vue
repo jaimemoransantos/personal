@@ -21,111 +21,120 @@
       </div>
       <div class="quote-form-header-actions">
         <div class="quote-form-header-actions-buttons">
-        <button
+          <!-- <button
           v-if="!isEditRoute"
           type="button"
           class="ghost-button"
           @click="fillMockQuote"
         >
           Rellenar datos de prueba
-        </button>
-        <button
-          v-if="!isEditRoute"
-          class="ghost-button ghost-button--danger"
-          type="button"
-          @click="onClear"
-        >
-          <svg
-            class="icon-trash"
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
+        </button> -->
+          <button
+            v-if="!isEditRoute"
+            class="ghost-button ghost-button--danger"
+            type="button"
+            @click="onClear"
           >
-            <polyline points="3 6 5 6 21 6" />
-            <path
-              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-            />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
-          Limpiar
-        </button>
+            <svg
+              class="icon-trash"
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+            Limpiar
+          </button>
         </div>
       </div>
     </header>
 
     <section class="card">
       <header class="card-header card-header--with-meta">
+        <div
+          v-if="isEditRoute && (quoteNumber || quoteUpdatedAtLabel)"
+          class="card-header-top-row"
+        >
+          <p v-if="quoteNumber" class="card-header-quote-number">
+            Nro. {{ quoteNumber }}
+          </p>
+          <span v-else></span>
+          <p v-if="quoteUpdatedAtLabel" class="card-header-meta">
+            Última modificación: {{ quoteUpdatedAtLabel }}
+          </p>
+        </div>
         <div class="card-header-row">
-          <h2 class="card-title">Cliente</h2>
+          <h2 class="card-title">Datos del cliente</h2>
           <div
             v-if="isEditRoute"
             class="status-badge-wrap"
             ref="statusBadgeWrapRef"
           >
-          <button
-            type="button"
-            class="status-badge"
-            :class="`status-badge--${form.status || 'pending'}`"
-            aria-haspopup="listbox"
-            :aria-expanded="statusDropdownOpen"
-            @click="statusDropdownOpen = !statusDropdownOpen"
-          >
-            <span class="status-badge-dot" aria-hidden="true"></span>
-            {{ quoteStatusLabel }}
-            <span class="status-badge-chevron" aria-hidden="true">▼</span>
-          </button>
-          <transition name="dropdown-fade">
-            <div
-              v-show="statusDropdownOpen"
-              class="status-dropdown"
-              role="listbox"
-              @click.stop
+            <button
+              type="button"
+              class="status-badge"
+              :class="`status-badge--${form.status || 'pending'}`"
+              aria-haspopup="listbox"
+              :aria-expanded="statusDropdownOpen"
+              @click="statusDropdownOpen = !statusDropdownOpen"
             >
-              <button
-                type="button"
-                role="option"
-                :aria-selected="form.status === 'pending'"
-                class="status-dropdown-option status-dropdown-option--pending"
-                @click="setQuoteStatus('pending')"
+              <span class="status-badge-dot" aria-hidden="true"></span>
+              {{ quoteStatusLabel }}
+              <span class="status-badge-chevron" aria-hidden="true">▼</span>
+            </button>
+            <transition name="dropdown-fade">
+              <div
+                v-show="statusDropdownOpen"
+                class="status-dropdown"
+                role="listbox"
+                @click.stop
               >
-                <span class="status-option-dot"></span>
-                Pendiente
-              </button>
-              <button
-                type="button"
-                role="option"
-                :aria-selected="form.status === 'accepted'"
-                class="status-dropdown-option status-dropdown-option--accepted"
-                @click="setQuoteStatus('accepted')"
-              >
-                <span class="status-option-dot"></span>
-                Aceptada
-              </button>
-              <button
-                type="button"
-                role="option"
-                :aria-selected="form.status === 'rejected'"
-                class="status-dropdown-option status-dropdown-option--rejected"
-                @click="setQuoteStatus('rejected')"
-              >
-                <span class="status-option-dot"></span>
-                Rechazada
-              </button>
-            </div>
-          </transition>
+                <button
+                  type="button"
+                  role="option"
+                  :aria-selected="form.status === 'pending'"
+                  class="status-dropdown-option status-dropdown-option--pending"
+                  @click="setQuoteStatus('pending')"
+                >
+                  <span class="status-option-dot"></span>
+                  Pendiente
+                </button>
+                <button
+                  type="button"
+                  role="option"
+                  :aria-selected="form.status === 'accepted'"
+                  class="status-dropdown-option status-dropdown-option--accepted"
+                  @click="setQuoteStatus('accepted')"
+                >
+                  <span class="status-option-dot"></span>
+                  Aceptada
+                </button>
+                <button
+                  type="button"
+                  role="option"
+                  :aria-selected="form.status === 'rejected'"
+                  class="status-dropdown-option status-dropdown-option--rejected"
+                  @click="setQuoteStatus('rejected')"
+                >
+                  <span class="status-option-dot"></span>
+                  Rechazada
+                </button>
+              </div>
+            </transition>
           </div>
         </div>
-        <p v-if="isEditRoute && quoteUpdatedAtLabel" class="card-header-meta">
-          Última modificación: {{ quoteUpdatedAtLabel }}
-        </p>
       </header>
 
       <div class="card-body">
@@ -392,18 +401,32 @@
                 inputmode="decimal"
                 placeholder="0.00"
                 class="qty-input"
-                @input="onDecimalInput($event, (v) => (item.quantity = v))"
+                @focus="
+                  ($event) => ($event.target as HTMLInputElement)?.select()
+                "
+                @input="onDecimalInput($event, (v) => (item.quantity = v ?? 1))"
                 @blur="onQtyBlur(item, $event)"
               />
             </div>
             <div class="col-price">
               <input
-                :value="item.price"
+                :value="
+                  item.price == null
+                    ? ''
+                    : item.price === 0
+                      ? '0.00'
+                      : item.price
+                "
                 type="text"
                 inputmode="decimal"
                 placeholder="0.00"
                 class="price-input"
-                @input="onDecimalInput($event, (v) => (item.price = v))"
+                @focus="
+                  ($event) => ($event.target as HTMLInputElement)?.select()
+                "
+                @input="
+                  onDecimalInput($event, (v) => setItemPrice(item, v), true)
+                "
                 @blur="onPriceBlur(item, $event)"
               />
             </div>
@@ -443,12 +466,19 @@
         <div v-if="items.length" class="discount-row">
           <label class="discount-row-label">Descuento (valor en $)</label>
           <input
-            :value="form.discount"
+            :value="
+              form.discount == null
+                ? ''
+                : form.discount === 0
+                  ? '0.00'
+                  : form.discount
+            "
             type="text"
             inputmode="decimal"
             placeholder="0.00"
             class="discount-row-input"
-            @input="onDecimalInput($event, (v) => (form.discount = v))"
+            @focus="($event) => ($event.target as HTMLInputElement)?.select()"
+            @input="onDecimalInput($event, (v) => (form.discount = v), true)"
             @blur="onDiscountBlur($event)"
           />
         </div>
@@ -480,6 +510,17 @@
               type="text"
               placeholder="Ej: 15 días, Válida hasta 30/03/2025..."
             />
+            <div class="quick-fill-row quick-fill-row--right">
+              <button
+                v-for="opt in VALIDITY_OPTIONS"
+                :key="opt"
+                type="button"
+                class="quick-fill-chip"
+                @click="form.validity = opt"
+              >
+                {{ opt }}
+              </button>
+            </div>
           </label>
         </div>
         <div class="form-row">
@@ -503,6 +544,17 @@
               type="text"
               placeholder="Ej: 5 días hábiles después de confirmación..."
             />
+            <div class="quick-fill-row quick-fill-row--right">
+              <button
+                v-for="opt in DELIVERY_TIME_OPTIONS"
+                :key="opt"
+                type="button"
+                class="quick-fill-chip"
+                @click="form.deliveryTime = opt"
+              >
+                {{ opt }}
+              </button>
+            </div>
           </label>
         </div>
         <div class="form-row">
@@ -513,6 +565,17 @@
               type="text"
               placeholder="Ej: Contado, 30 días, 50% anticipo..."
             />
+            <div class="quick-fill-row quick-fill-row--right">
+              <button
+                v-for="opt in PAYMENT_METHOD_OPTIONS"
+                :key="opt"
+                type="button"
+                class="quick-fill-chip"
+                @click="form.paymentMethod = opt"
+              >
+                {{ opt }}
+              </button>
+            </div>
           </label>
         </div>
         <div class="form-row notes-row">
@@ -520,9 +583,18 @@
             <span class="field-label">Notas</span>
             <textarea
               v-model="form.notes"
-              rows="3"
+              rows="7"
               placeholder="Notas internas o aclaraciones para el cliente..."
             />
+            <div class="quick-fill-row quick-fill-row--right">
+              <button
+                type="button"
+                class="quick-fill-text-btn"
+                @click="setDefaultNotes"
+              >
+                Usar texto por defecto
+              </button>
+            </div>
           </label>
         </div>
         <div class="form-row">
@@ -536,6 +608,15 @@
               rows="2"
               placeholder="Ej: Sujeto a cambios en impuestos, aranceles de importación, tipo de cambio u otros factores."
             />
+            <div class="quick-fill-row quick-fill-row--right">
+              <button
+                type="button"
+                class="quick-fill-text-btn"
+                @click="setDefaultDisclaimer"
+              >
+                Usar texto por defecto
+              </button>
+            </div>
           </label>
         </div>
       </div>
@@ -549,6 +630,7 @@
       </div>
       <div class="actions-right">
         <button
+          v-if="quoteId"
           class="secondary-action"
           type="button"
           :disabled="savingQuote"
@@ -581,36 +663,42 @@
         </header>
 
         <div class="pdf-content">
-          <section class="pdf-client">
-            <div class="pdf-row">
-              <span class="pdf-label">Cliente:</span>
-              <span class="pdf-value">{{ form.name || "—" }}</span>
+          <div class="pdf-client-row">
+            <section class="pdf-client">
+              <div class="pdf-row">
+                <span class="pdf-label">Cliente:</span>
+                <span class="pdf-value">{{ form.name || "—" }}</span>
+              </div>
+              <div class="pdf-row">
+                <span class="pdf-label">RUC / CI:</span>
+                <span class="pdf-value">{{ form.document || "—" }}</span>
+              </div>
+              <div class="pdf-row">
+                <span class="pdf-label">Email:</span>
+                <span class="pdf-value">{{ form.email || "—" }}</span>
+              </div>
+              <div class="pdf-row">
+                <span class="pdf-label">Teléfono:</span>
+                <span class="pdf-value">{{ form.phone || "—" }}</span>
+              </div>
+              <div class="pdf-row">
+                <span class="pdf-label">Dirección:</span>
+                <span class="pdf-value">{{ form.address || "—" }}</span>
+              </div>
+              <div v-if="form.directedTo" class="pdf-row">
+                <span class="pdf-label">Dirigida a:</span>
+                <span class="pdf-value">{{ form.directedTo }}</span>
+              </div>
+              <div v-if="form.project" class="pdf-row">
+                <span class="pdf-label">Proyecto:</span>
+                <span class="pdf-value">{{ form.project }}</span>
+              </div>
+            </section>
+            <div v-if="quoteNumber || pdfQuoteDateLabel" class="pdf-quote-number-box">
+              <div v-if="quoteNumber">Nro. {{ quoteNumber }}</div>
+              <div v-if="pdfQuoteDateLabel" class="pdf-quote-date">{{ pdfQuoteDateLabel }}</div>
             </div>
-            <div class="pdf-row">
-              <span class="pdf-label">RUC / CI:</span>
-              <span class="pdf-value">{{ form.document || "—" }}</span>
-            </div>
-            <div class="pdf-row">
-              <span class="pdf-label">Email:</span>
-              <span class="pdf-value">{{ form.email || "—" }}</span>
-            </div>
-            <div class="pdf-row">
-              <span class="pdf-label">Teléfono:</span>
-              <span class="pdf-value">{{ form.phone || "—" }}</span>
-            </div>
-            <div class="pdf-row">
-              <span class="pdf-label">Dirección:</span>
-              <span class="pdf-value">{{ form.address || "—" }}</span>
-            </div>
-            <div v-if="form.directedTo" class="pdf-row">
-              <span class="pdf-label">Dirigida a:</span>
-              <span class="pdf-value">{{ form.directedTo }}</span>
-            </div>
-            <div v-if="form.project" class="pdf-row">
-              <span class="pdf-label">Proyecto:</span>
-              <span class="pdf-value">{{ form.project }}</span>
-            </div>
-          </section>
+          </div>
 
           <section class="pdf-table-section" v-if="items.length">
             <table class="pdf-table">
@@ -760,7 +848,8 @@
 
     <AppModal v-model="showBackConfirmModal" title="¿Salir sin guardar?">
       <p>
-        Tienes cambios sin guardar. ¿Quieres salir de todos modos? Se perderán los datos no guardados.
+        Tienes cambios sin guardar. ¿Quieres salir de todos modos? Se perderán
+        los datos no guardados.
       </p>
       <template #footer>
         <button
@@ -973,6 +1062,36 @@ const QUOTE_STATUS_LABELS: Record<string, string> = {
   accepted: "Aceptada",
   rejected: "Rechazada",
 };
+
+/** Texto por defecto para Notas (mensaje estándar de equipo/técnicos). */
+const DEFAULT_NOTES =
+  "Esta cotización incluye 2 técnicos, 1 supervisor, un generador, una cuña, una extrusora, 2 sopladores, soldadura de polietileno, hospedaje, alimentación y movilización de personal. \n\nIMPORTANTE: Contar con una cuadrilla de 4 personas para labores menores como templado de geomembrana y anclaje.  Por ser un área grande a cubrir se debe contar una excavadora para realizar el corte del material mediante un aditamento proporcionado por nosotros.  Ver vídeo adjunto.";
+
+/** Texto por defecto para Aclaraciones. */
+const DEFAULT_DISCLAIMER =
+  "Cabe indicar que los precios son fijos, pero podrían variar si existieran aumentos por parte del gobierno en tasas arancelarias, ISD, IVA o algún impuesto adicional, o por la subida de los precios de fletes internacionales.";
+
+const VALIDITY_OPTIONS = ["15 días", "30 días", "60 días"];
+const DELIVERY_TIME_OPTIONS = [
+  "5 días hábiles",
+  "10 días hábiles",
+  "15 días hábiles",
+];
+
+const PAYMENT_METHOD_OPTIONS = [
+  "50% anticipado y 50% contra entrega",
+  "70% anticipado, 30% contra entrega",
+  "80% anticipado, 20% contra entrega",
+  "100% anticipado",
+];
+
+function setDefaultNotes() {
+  form.notes = DEFAULT_NOTES;
+}
+function setDefaultDisclaimer() {
+  form.disclaimer = DEFAULT_DISCLAIMER;
+}
+
 const quoteStatusLabel = computed(
   () => QUOTE_STATUS_LABELS[form.status || "pending"] ?? "Pendiente",
 );
@@ -995,6 +1114,16 @@ const quoteUpdatedAtLabel = computed(() => {
     .format(d)
     .replace(",", "")
     .trim();
+});
+
+/** Fecha formateada para el PDF (solo día/mes/año, sin hora). */
+const pdfQuoteDateLabel = computed(() => {
+  const d = quoteUpdatedAt.value;
+  if (!d || !(d instanceof Date) || Number.isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(d.getFullYear());
+  return `${dd}/${mm}/${yyyy}`;
 });
 
 function resetFormAndDraft() {
@@ -1107,7 +1236,7 @@ const form = reactive({
   reference: "",
   project: "",
   searchProduct: "",
-  discount: 0 as number,
+  discount: 0 as number | null,
   status: "pending" as "pending" | "accepted" | "rejected",
   validity: "",
   deliveryPlace: "" as "" | "on_site" | "warehouse",
@@ -1650,6 +1779,7 @@ async function loadQuoteById(id: string) {
     const res = await api.get(`/api/quotes/${id}`);
     const q = res?.data as {
       id?: string;
+      quoteNumber?: string;
       updatedAt?: unknown;
       customerId?: string;
       client?: {
@@ -1681,6 +1811,7 @@ async function loadQuoteById(id: string) {
     };
     if (!q?.client || !Array.isArray(q.items)) return;
     quoteId.value = q.id ?? id;
+    quoteNumber.value = q.quoteNumber ?? null;
     quoteUpdatedAt.value = parseQuoteUpdatedAt(q.updatedAt);
     const cid = q.customerId ?? null;
     const c = q.client;
@@ -1771,7 +1902,7 @@ const subtotal = computed(() =>
 );
 
 const discountAmount = computed(() => {
-  const d = Number(form.discount);
+  const d = Number(form.discount ?? 0);
   const s = subtotal.value;
   if (Number.isNaN(d) || d < 0) return 0;
   return Math.min(d, s);
@@ -1817,23 +1948,40 @@ const totalInWordsSentence = computed(() => {
 });
 
 /** En cantidad, precio y descuento: convierte coma a punto al escribir y mantiene el modelo sincronizado. */
-function onDecimalInput(event: Event, setModel: (value: number) => void) {
+function onDecimalInput(
+  event: Event,
+  setModel: (value: number | null) => void,
+  allowEmpty = false,
+) {
   const el = event.target as HTMLInputElement | null;
   if (!el) return;
   const normalized = normalizeDecimalString(el.value);
   if (normalized !== el.value) el.value = normalized;
+  if (normalized === "" && allowEmpty) {
+    setModel(null);
+    return;
+  }
   const num = Number(normalized);
   setModel(Number.isFinite(num) ? num : 0);
 }
 
 const onDiscountBlur = (event: FocusEvent) => {
-  const raw = (event.target as HTMLInputElement | null)?.value?.trim() ?? "";
-  const parsed = parseDecimal(raw);
-  if (parsed < 0) {
+  const el = event.target as HTMLInputElement | null;
+  const raw = el?.value?.trim() ?? "";
+  if (raw === "") {
     form.discount = 0;
+    if (el) el.value = "0.00";
     return;
   }
-  const capped = Math.min(parsed, subtotal.value);
+  // Usar form.discount (ya actualizado en cada @input) para evitar leer un DOM desactualizado
+  // cuando el blur se dispara antes de que Vue repinte el input.
+  const current = form.discount ?? 0;
+  if (current < 0) {
+    form.discount = 0;
+    if (el) el.value = "0.00";
+    return;
+  }
+  const capped = Math.min(current, subtotal.value);
   form.discount = Math.round(capped * 100) / 100;
 };
 
@@ -1845,13 +1993,17 @@ const formatQty = (n: number) => {
   return clamped.toFixed(2);
 };
 
-const onPriceBlur = (item: { price: number }, event: FocusEvent) => {
-  const raw = (event.target as HTMLInputElement | null)?.value?.trim() ?? "";
-  const newPrice = raw === "" ? 0 : Math.max(0, parseDecimal(raw));
+/** Asigna precio (permite null mientras el campo está vacío durante la edición). */
+function setItemPrice(item: { price: number }, v: number | null) {
+  (item as { price: number | null }).price = v;
+}
 
-  nextTick(() => {
-    item.price = newPrice;
-  });
+const onPriceBlur = (item: { price: number }, event: FocusEvent) => {
+  const el = event.target as HTMLInputElement | null;
+  const raw = el?.value?.trim() ?? "";
+  const newPrice = raw === "" ? 0 : Math.max(0, parseDecimal(raw));
+  item.price = newPrice;
+  if (el && newPrice === 0) el.value = "0.00";
 };
 
 const onQtyBlur = (item: { quantity: number }, event: FocusEvent) => {
@@ -1961,6 +2113,8 @@ async function onSaveAndBack() {
 const quoteId = ref<string | null>(null);
 /** Set when loading a quote for edit; used to show "Última modificación" in the card header. */
 const quoteUpdatedAt = ref<Date | null>(null);
+/** Número de cotización (ej. 2026000079); solo en modo edición. */
+const quoteNumber = ref<string | null>(null);
 
 function formatSavedAt(date: Date): string {
   const raw = new Intl.DateTimeFormat("es-EC", {
@@ -1996,9 +2150,9 @@ async function doSaveQuote() {
       name: i.name,
       subtitle: i.subtitle ?? "",
       quantity: parseDecimal(i.quantity),
-      price: parseDecimal(Number(i.price)),
+      price: parseDecimal(Number(i.price ?? 0)),
     })),
-    discount: parseDecimal(form.discount),
+    discount: parseDecimal(form.discount ?? 0),
     status: form.status || "pending",
     validity: (form.validity ?? "").trim(),
     deliveryPlace: form.deliveryPlace || "",
@@ -2123,13 +2277,17 @@ async function onSaveQuoteAndUpdateCustomer() {
 }
 
 const onExportPdf = async () => {
+  if (!quoteId.value) return;
   if (!pdfRef.value) return;
 
   const element = pdfRef.value;
+  const filename = quoteNumber.value
+    ? `cotizacion-${quoteNumber.value}.pdf`
+    : "cotizacion-geomtech.pdf";
 
   const opt = {
     margin: 0,
-    filename: "quote-geomtech.pdf",
+    filename,
     image: { type: "jpeg", quality: 1.0 },
     html2canvas: { scale: 2.2, useCORS: true },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
@@ -2176,7 +2334,10 @@ const onExportPdf = async () => {
   color: #64748b;
   text-decoration: none;
   cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
   outline: none;
 }
 
@@ -2433,14 +2594,22 @@ const onExportPdf = async () => {
 }
 
 .card-header {
-  padding: 1rem 1.5rem 1.25rem 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 1.5rem 0 1.5rem;
+  /* border-bottom: 1px solid #e2e8f0; */
 }
 
 .card-header--with-meta {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1.5rem;
+}
+
+.card-header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
 }
 
 .card-header-row {
@@ -2450,8 +2619,29 @@ const onExportPdf = async () => {
   gap: 1rem;
 }
 
+.card-header-row .card-title {
+  margin-left: -0.5rem;
+}
+
+.card-header-row .status-badge-wrap {
+  margin-right: -0.5rem;
+}
+
+.card-header-quote-number {
+  margin: 0;
+  margin-left: -0.5rem;
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #e5edff;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+
 .card-header-meta {
   margin: 0;
+  margin-right: -0.5rem;
   font-size: 0.8rem;
   color: #64748b;
   font-style: italic;
@@ -2573,6 +2763,70 @@ const onExportPdf = async () => {
   font-weight: 400;
   font-style: italic;
   color: #94a3b8;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.field-label-row .field-label {
+  margin-bottom: 0;
+}
+
+.quick-fill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.quick-fill-row--right {
+  justify-content: flex-end;
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+}
+
+.quick-fill-chip {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #0f9f70;
+  background: rgba(15, 159, 112, 0.08);
+  border: 1px solid rgba(15, 159, 112, 0.3);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.quick-fill-chip:hover {
+  background: rgba(15, 159, 112, 0.14);
+  border-color: rgba(15, 159, 112, 0.5);
+}
+
+.quick-fill-text-btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.quick-fill-text-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 input,
@@ -3115,8 +3369,29 @@ input[type="number"] {
   height: auto;
 }
 
-.pdf-client {
+.pdf-client-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8mm;
   margin-bottom: 8mm;
+}
+
+.pdf-client {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.pdf-quote-number-box {
+  align-self: flex-start;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pdf-quote-date {
+  margin-top: 2mm;
+  font-weight: 400;
+  font-size: 10px;
 }
 
 .pdf-content {
@@ -3220,6 +3495,7 @@ input[type="number"] {
 
 .pdf-notes-text {
   margin: 0;
+  white-space: pre-line;
 }
 
 .pdf-footer {
