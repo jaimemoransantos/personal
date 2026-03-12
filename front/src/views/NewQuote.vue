@@ -1478,73 +1478,73 @@ async function onCreateCustomerFromQuote() {
   }
 }
 
-function fillMockQuote() {
-  resetFormAndDraft();
-  form.name = "Cliente de prueba S.A.";
-  form.document = "1234567890001";
-  form.phone = "0991234567";
-  form.email = "contacto@cliente-prueba.com";
-  form.address = "Av. Ejemplo 123, Quito";
-  form.directedTo = "Ing. Juan Pérez";
-  form.reference = "COT-PRUEBA-001";
-  form.project = "Proyecto piloto";
-  form.discount = 50;
-  form.validity = "15 días";
-  form.deliveryPlace = "on_site";
-  form.deliveryTime = "5 días hábiles";
-  form.paymentMethod = "50% anticipo, 50% a 30 días";
+// function fillMockQuote() {
+//   resetFormAndDraft();
+//   form.name = "Cliente de prueba S.A.";
+//   form.document = "1234567890001";
+//   form.phone = "0991234567";
+//   form.email = "contacto@cliente-prueba.com";
+//   form.address = "Av. Ejemplo 123, Quito";
+//   form.directedTo = "Ing. Juan Pérez";
+//   form.reference = "COT-PRUEBA-001";
+//   form.project = "Proyecto piloto";
+//   form.discount = 50;
+//   form.validity = "15 días";
+//   form.deliveryPlace = "on_site";
+//   form.deliveryTime = "5 días hábiles";
+//   form.paymentMethod = "50% anticipo, 50% a 30 días";
 
-  const mockItems = [
-    {
-      id: "mock-1",
-      code: "PROD-001",
-      name: "Producto de prueba A",
-      subtitle: "Descripción ejemplo",
-      price: 250.5,
-      quantity: 2,
-    },
-    {
-      id: "mock-2",
-      code: "PROD-002",
-      name: "Producto de prueba B",
-      subtitle: "Otro ítem de prueba",
-      price: 180,
-      quantity: 1.5,
-    },
-    {
-      id: "mock-3",
-      code: "PROD-003",
-      name: "Servicio de prueba",
-      subtitle: "Incluye instalación",
-      price: 500,
-      quantity: 1,
-    },
-  ];
+//   const mockItems = [
+//     {
+//       id: "mock-1",
+//       code: "PROD-001",
+//       name: "Producto de prueba A",
+//       subtitle: "Descripción ejemplo",
+//       price: 250.5,
+//       quantity: 2,
+//     },
+//     {
+//       id: "mock-2",
+//       code: "PROD-002",
+//       name: "Producto de prueba B",
+//       subtitle: "Otro ítem de prueba",
+//       price: 180,
+//       quantity: 1.5,
+//     },
+//     {
+//       id: "mock-3",
+//       code: "PROD-003",
+//       name: "Servicio de prueba",
+//       subtitle: "Incluye instalación",
+//       price: 500,
+//       quantity: 1,
+//     },
+//   ];
 
-  items.splice(0, items.length);
-  mockItems.forEach((raw) => {
-    items.push({
-      id: raw.id,
-      code: raw.code,
-      name: raw.name,
-      subtitle: raw.subtitle,
-      price: raw.price,
-      quantity: raw.quantity,
-      get priceFormatted() {
-        return formatCurrency(Number(this.price) || 0);
-      },
-      get total() {
-        const p = Number(this.price);
-        const q = Number(this.quantity);
-        return (Number.isNaN(p) ? 0 : p) * (Number.isNaN(q) || q <= 0 ? 1 : q);
-      },
-      get totalFormatted() {
-        return formatCurrency(this.total);
-      },
-    });
-  });
-  isDirty.value = true;
-}
+//   items.splice(0, items.length);
+//   mockItems.forEach((raw) => {
+//     items.push({
+//       id: raw.id,
+//       code: raw.code,
+//       name: raw.name,
+//       subtitle: raw.subtitle,
+//       price: raw.price,
+//       quantity: raw.quantity,
+//       get priceFormatted() {
+//         return formatCurrency(Number(this.price) || 0);
+//       },
+//       get total() {
+//         const p = Number(this.price);
+//         const q = Number(this.quantity);
+//         return (Number.isNaN(p) ? 0 : p) * (Number.isNaN(q) || q <= 0 ? 1 : q);
+//       },
+//       get totalFormatted() {
+//         return formatCurrency(this.total);
+//       },
+//     });
+//   });
+//   isDirty.value = true;
+// }
 
 function onClear() {
   resetFormAndDraft();
