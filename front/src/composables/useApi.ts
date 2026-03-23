@@ -8,7 +8,8 @@ const API_BASE_URL =
     : "https://us-central1-personal-67927.cloudfunctions.net/api";
 
 /** 401 after a token refresh means session revoked/invalid → we sign out so user must log in again. */
-export const SESSION_INVALID_MESSAGE = "Sesión expirada. Inicia sesión de nuevo.";
+export const SESSION_INVALID_MESSAGE =
+  "Sesión expirada. Inicia sesión de nuevo.";
 
 function showSessionExpiredToast() {
   try {
@@ -40,7 +41,7 @@ export const useApi = () => {
   const apiCall = async (
     endpoint: string,
     options: RequestInit = {},
-    retried = false
+    retried = false,
   ): Promise<any> => {
     const token = await getAuthToken(retried);
 
@@ -75,7 +76,9 @@ export const useApi = () => {
       showSessionExpiredToast();
       await signOut(auth);
       const body = await response.json().catch(() => ({}));
-      throw new Error((body as { error?: string })?.error ?? SESSION_INVALID_MESSAGE);
+      throw new Error(
+        (body as { error?: string })?.error ?? SESSION_INVALID_MESSAGE,
+      );
     }
 
     if (!response.ok) {
@@ -112,7 +115,9 @@ export const useApi = () => {
     }
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error((err as { error?: string })?.error || "Error en la petición");
+      throw new Error(
+        (err as { error?: string })?.error || "Error en la petición",
+      );
     }
     return response.blob();
   };

@@ -41,7 +41,7 @@ if (useEmulators && !emulatorsConnected) {
   } catch (error) {
     console.warn(
       "Error connecting to emulators (they may already be connected):",
-      error
+      error,
     );
   }
 }

@@ -68,8 +68,20 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
   overflow: hidden;
+}
+
+html {
+  height: 100%;
+  height: -webkit-fill-available;
+  background-color: #f5f5f5;
+}
+
+body {
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  background-color: #f5f5f5;
 }
 
 #app {
@@ -78,9 +90,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   margin: 0;
   padding: 0;
+  background-color: #f5f5f5;
 }
 
 .global-toast {

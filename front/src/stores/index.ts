@@ -15,6 +15,14 @@ import { defineStore } from "pinia";
 import { auth } from "../firebase/config";
 import { useApi } from "../composables/useApi";
 import { useQuoteDraftStore } from "./quoteDraft";
+import { useOrganizationStore } from "./organization";
+
+/**
+ * Solo `import.meta.env.DEV`: pon `VITE_DEV_BYPASS_AUTH=true` en `.env.local` para entrar al
+ * dashboard sin login (útil para maquetar). Las APIs siguen necesitando sesión real.
+ */
+export const isDevAuthBypass =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
 
 /** Profile from Firestore (users collection). Used for displayName/photoURL when set in DB. */
 export interface UserProfile {
@@ -32,7 +40,9 @@ export const useUserStore = defineStore("user", () => {
   const error = ref<string | null>(null);
   /** true when Firebase Auth has resolved initial auth state (valid session or not) */
   const authReady = ref(false);
-  const isAuthenticated = computed(() => user.value !== null);
+  const isAuthenticated = computed(
+    () => user.value !== null || isDevAuthBypass,
+  );
 
   /** Display name: Firestore first, then Auth, then email */
   const displayName = computed(() => {
@@ -95,6 +105,17 @@ export const useUserStore = defineStore("user", () => {
   const TOKEN_REFRESH_MINUTES = 50;
 
   const initAuth = () => {
+    if (isDevAuthBypass) {
+      authReady.value = true;
+      profile.value = {
+        displayName: "Dev (sin login)",
+        email: "dev@local",
+      };
+      console.warn(
+        "[dev] VITE_DEV_BYPASS_AUTH: navegación sin Firebase. Las llamadas API requieren iniciar sesión.",
+      );
+    }
+
     // Persistence in background; do not block if it fails or is slow (e.g. iOS/PWA)
     setPersistence(auth, indexedDBLocalPersistence).catch((err) => {
       console.error("Error setting Firebase Auth persistence:", err);
@@ -116,8 +137,10 @@ export const useUserStore = defineStore("user", () => {
       }
 
       if (!firebaseUser) {
-        profile.value = null;
-        useQuoteDraftStore().clearDraft();
+        if (!isDevAuthBypass) {
+          profile.value = null;
+          useQuoteDraftStore().clearDraft();
+        }
       } else {
         // Proactive refresh so the ID token rarely expires before the next API call
         tokenRefreshIntervalId = setInterval(() => {
@@ -208,13 +231,18 @@ export const useUserStore = defineStore("user", () => {
   };
 
   const logout = async () => {
+    if (isDevAuthBypass) {
+      console.warn(
+        "[dev] Quita VITE_DEV_BYPASS_AUTH para poder cerrar sesión con Firebase.",
+      );
+      return;
+    }
     loading.value = true;
     error.value = null;
     try {
       useQuoteDraftStore().clearDraft();
       await signOut(auth);
       profile.value = null;
-      const { useOrganizationStore } = await import("./organization");
       useOrganizationStore().clearOrganization();
     } catch (error: any) {
       error.value = (error as Error).message ?? "Error desconocido";

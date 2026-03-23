@@ -4,6 +4,21 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 1100,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("firebase")) return "firebase";
+          if (id.includes("html2pdf")) return "html2pdf";
+        },
+      },
+    },
+  },
+  server: {
+    host: true,
+  },
   plugins: [
     vue(),
     VitePWA({

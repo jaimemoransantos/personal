@@ -94,13 +94,15 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useUserStore } from "../stores/index";
+import { useUserStore, isDevAuthBypass } from "../stores/index";
 import { useApi } from "../composables/useApi";
+import { useToastStore } from "../stores/toast";
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const api = useApi();
+const toastStore = useToastStore();
 const { logout } = userStore;
 
 const avatarImgError = ref(false);
@@ -171,6 +173,13 @@ const userInitial = computed(() => {
 });
 
 const handleLogout = async () => {
+  if (isDevAuthBypass) {
+    toastStore.show(
+      "Quita VITE_DEV_BYPASS_AUTH del .env para cerrar sesión con Firebase.",
+      "info",
+    );
+    return;
+  }
   await logout();
   router.push("/login");
 };
@@ -188,14 +197,18 @@ const goTo = (path: string) => {
 /* Sidebar - 1/5 width */
 .sidebar {
   width: 20%;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
   background: #053f51;
   border-right: none;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .sidebar-header {
+  flex-shrink: 0;
   padding: 1.5rem 1.5rem 2rem 1.5rem;
   border-bottom: 1px solid rgba(148, 163, 184, 0.25);
   text-align: center;
@@ -212,11 +225,15 @@ const goTo = (path: string) => {
 }
 
 .sidebar-nav {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 1rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .nav-item {
@@ -279,7 +296,9 @@ const goTo = (path: string) => {
 }
 
 .sidebar-footer {
+  flex-shrink: 0;
   padding: 1.5rem;
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid rgba(148, 163, 184, 0.25);
 }
 

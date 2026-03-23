@@ -17,13 +17,14 @@
 <script setup lang="ts">
 import { onMounted, watch } from "vue";
 import AppSidebar from "../components/AppSidebar.vue";
-import { useUserStore } from "../stores/index";
+import { useUserStore, isDevAuthBypass } from "../stores/index";
 import { useOrganizationStore } from "../stores/organization";
 
 const userStore = useUserStore();
 const organizationStore = useOrganizationStore();
 
 onMounted(() => {
+  if (isDevAuthBypass) return;
   if (userStore.isAuthenticated && !organizationStore.hasOrganization) {
     organizationStore.fetchCurrentOrganization();
   }
@@ -32,6 +33,7 @@ onMounted(() => {
 watch(
   () => userStore.isAuthenticated,
   (isAuth) => {
+    if (isDevAuthBypass) return;
     if (isAuth && !organizationStore.hasOrganization) {
       organizationStore.fetchCurrentOrganization();
     }
@@ -45,24 +47,32 @@ watch(
 <style scoped>
 .dashboard-container {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
-  height: 100vh;
-  width: 100vw;
+  width: 100%;
+  height: 100%;
+  /* iOS/iPad: evita franja blanca debajo de un bloque con height:100dvh vs viewport real */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
   overflow: hidden;
   background: #f5f5f5;
   margin: 0;
   padding: 0;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  box-sizing: border-box;
 }
 
 .main-content {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   width: 80%;
   overflow-y: auto;
   background: #f5f5f5;
+  -webkit-overflow-scrolling: touch;
+  /* Área segura inferior sin encoger el contenedor fijo (evita “banda” vacía) */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .content-area {
