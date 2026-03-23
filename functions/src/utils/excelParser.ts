@@ -188,7 +188,7 @@ export function mapRowToProduct(row: Record<string, string>): ProductRow {
   const priceStr = getCol(row, "price", "precio", "precio unitario");
   const price = parseFloat(priceStr) || 0;
   return {
-    code: getCol(row, "code", "codigo", "código"),
+    code: getCol(row, "code", "codigo", "código").trim().toUpperCase(),
     name: getCol(row, "name", "nombre", "producto"),
     subtitle: getCol(row, "subtitle", "subtitulo", "subtítulo", "descripcion", "descripción"),
     price,

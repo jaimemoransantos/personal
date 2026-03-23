@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { ProductService } from "../services/productService";
+import type { CreateProductData } from "../types/product";
 import { handleError } from "../utils/errors";
 
 export class ProductController {
@@ -32,7 +33,26 @@ export class ProductController {
     try {
       const organizationId = req.organizationId!;
       const userId = req.user?.uid;
-      const data = req.body;
+      const body = req.body as Record<string, unknown>;
+      const code =
+        typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
+      const name =
+        typeof body.name === "string" ? body.name.trim() : "";
+      if (!code || !name) {
+        res.status(400).json({
+          success: false,
+          error: "Código y nombre son obligatorios",
+        });
+        return;
+      }
+      const subtitle =
+        typeof body.subtitle === "string" ? body.subtitle.trim() : "";
+      const priceRaw = body.price;
+      const price =
+        typeof priceRaw === "number" && !Number.isNaN(priceRaw)
+          ? priceRaw
+          : Number(priceRaw) || 0;
+      const data = { code, name, subtitle, price };
       const product = await ProductService.create(organizationId, data, userId);
       res.status(201).json({ success: true, data: product });
     } catch (error) {
@@ -44,7 +64,13 @@ export class ProductController {
     try {
       const organizationId = req.organizationId!;
       const { id } = req.params;
-      const data = req.body;
+      const body = req.body as Partial<CreateProductData>;
+      const data: Partial<CreateProductData> = {
+        ...body,
+        ...(typeof body.code === "string"
+          ? { code: body.code.trim().toUpperCase() }
+          : {}),
+      };
       const product = await ProductService.update(organizationId, id, data);
       res.json({ success: true, data: product });
     } catch (error) {

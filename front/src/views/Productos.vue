@@ -98,18 +98,25 @@
       <form class="edit-form" @submit.prevent="saveNew">
         <label class="form-field">
           <span class="form-label">Código</span>
-          <input v-model="addForm.code" type="text" />
+          <input
+            :value="addForm.code"
+            class="input-code"
+            type="text"
+            required
+            autocomplete="off"
+            @input="onAddCodeInput"
+          />
         </label>
         <label class="form-field">
           <span class="form-label">Nombre</span>
           <input v-model="addForm.name" type="text" required />
         </label>
         <label class="form-field">
-          <span class="form-label">Descripción / Subtítulo</span>
+          <span class="form-label">Descripción / Subtítulo (opcional)</span>
           <input v-model="addForm.subtitle" type="text" />
         </label>
         <label class="form-field">
-          <span class="form-label">Precio</span>
+          <span class="form-label">Precio (opcional)</span>
           <input
             v-model.number="addForm.price"
             type="number"
@@ -130,7 +137,7 @@
         <button
           type="button"
           class="modal-btn modal-btn-primary"
-          :disabled="savingNew"
+          :disabled="savingNew || !canSaveNew"
           @click="saveNew"
         >
           {{ savingNew ? "Guardando…" : "Guardar" }}
@@ -141,7 +148,7 @@
     <AppModal
       v-model="showEditModal"
       title="Editar producto"
-      :close-on-backdrop="!savingEdit"
+      :close-on-backdrop="!savingEdit && !deletingProduct"
     >
       <form
         v-if="editingProductId"
@@ -150,7 +157,13 @@
       >
         <label class="form-field">
           <span class="form-label">Código</span>
-          <input v-model="editForm.code" type="text" />
+          <input
+            :value="editForm.code"
+            class="input-code"
+            type="text"
+            autocomplete="off"
+            @input="onEditCodeInput"
+          />
         </label>
         <label class="form-field">
           <span class="form-label">Nombre</span>
@@ -171,21 +184,64 @@
         </label>
       </form>
       <template #footer>
+        <div class="edit-modal-footer">
+          <button
+            type="button"
+            class="modal-btn btn-delete-product"
+            :disabled="savingEdit || deletingProduct"
+            @click="showDeleteConfirmModal = true"
+          >
+            Eliminar
+          </button>
+          <div class="edit-modal-footer-actions">
+            <button
+              type="button"
+              class="modal-btn modal-btn-cancel"
+              :disabled="savingEdit || deletingProduct"
+              @click="showEditModal = false"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="modal-btn modal-btn-primary"
+              :disabled="savingEdit || deletingProduct"
+              @click="saveEdit"
+            >
+              {{ savingEdit ? "Guardando…" : "Guardar" }}
+            </button>
+          </div>
+        </div>
+      </template>
+    </AppModal>
+
+    <AppModal
+      v-model="showDeleteConfirmModal"
+      title="¿Eliminar producto?"
+      variant="danger"
+      :close-on-backdrop="!deletingProduct"
+      :show-close-button="!deletingProduct"
+    >
+      <p v-if="editingProductId">
+        Se eliminará <strong>{{ editForm.name || "este producto" }}</strong> de
+        forma permanente. No se puede deshacer.
+      </p>
+      <template #footer>
         <button
           type="button"
           class="modal-btn modal-btn-cancel"
-          :disabled="savingEdit"
-          @click="showEditModal = false"
+          :disabled="deletingProduct"
+          @click="showDeleteConfirmModal = false"
         >
           Cancelar
         </button>
         <button
           type="button"
           class="modal-btn modal-btn-primary"
-          :disabled="savingEdit"
-          @click="saveEdit"
+          :disabled="deletingProduct"
+          @click="confirmDeleteProduct"
         >
-          {{ savingEdit ? "Guardando…" : "Guardar" }}
+          {{ deletingProduct ? "Eliminando…" : "Eliminar" }}
         </button>
       </template>
     </AppModal>
@@ -223,15 +279,30 @@ const addForm = reactive({
   price: 0 as number,
 });
 
+/** Solo habilita Guardar en “Nuevo producto” cuando hay código y nombre. */
+const canSaveNew = computed(
+  () => Boolean(addForm.code?.trim() && addForm.name?.trim()),
+);
+
 const showEditModal = ref(false);
 const editingProductId = ref<string | null>(null);
 const savingEdit = ref(false);
+const showDeleteConfirmModal = ref(false);
+const deletingProduct = ref(false);
 const editForm = reactive({
   code: "",
   name: "",
   subtitle: "",
   price: 0 as number,
 });
+
+function onAddCodeInput(e: Event) {
+  addForm.code = (e.target as HTMLInputElement).value.toUpperCase();
+}
+
+function onEditCodeInput(e: Event) {
+  editForm.code = (e.target as HTMLInputElement).value.toUpperCase();
+}
 
 function openAddModal() {
   addForm.code = "";
@@ -242,11 +313,11 @@ function openAddModal() {
 }
 
 async function saveNew() {
-  if (!addForm.name?.trim()) return;
+  if (!canSaveNew.value) return;
   savingNew.value = true;
   try {
     await api.post("/api/products", {
-      code: addForm.code?.trim() ?? "",
+      code: (addForm.code?.trim() ?? "").toUpperCase(),
       name: addForm.name.trim(),
       subtitle: addForm.subtitle?.trim() ?? "",
       price: Number(addForm.price) || 0,
@@ -264,7 +335,7 @@ async function saveNew() {
 
 function openEditModal(product: Product) {
   editingProductId.value = product.id;
-  editForm.code = product.code ?? "";
+  editForm.code = (product.code ?? "").toUpperCase();
   editForm.name = product.name ?? "";
   editForm.subtitle = product.subtitle ?? "";
   editForm.price = product.price ?? 0;
@@ -272,8 +343,30 @@ function openEditModal(product: Product) {
 }
 
 watch(showEditModal, (open) => {
-  if (!open) editingProductId.value = null;
+  if (!open) {
+    editingProductId.value = null;
+    showDeleteConfirmModal.value = false;
+  }
 });
+
+async function confirmDeleteProduct() {
+  const id = editingProductId.value;
+  if (!id) return;
+  deletingProduct.value = true;
+  try {
+    await api.delete(`/api/products/${id}`);
+    toast.show("Producto eliminado correctamente", "success");
+    showDeleteConfirmModal.value = false;
+    showEditModal.value = false;
+    await fetchProducts();
+  } catch (e) {
+    const message =
+      e instanceof Error ? e.message : "Error al eliminar el producto";
+    toast.show(message, "error");
+  } finally {
+    deletingProduct.value = false;
+  }
+}
 
 async function saveEdit() {
   const id = editingProductId.value;
@@ -281,7 +374,7 @@ async function saveEdit() {
   savingEdit.value = true;
   try {
     await api.put(`/api/products/${id}`, {
-      code: editForm.code?.trim() ?? "",
+      code: (editForm.code?.trim() ?? "").toUpperCase(),
       name: editForm.name.trim(),
       subtitle: editForm.subtitle?.trim() ?? "",
       price: Number(editForm.price) || 0,
@@ -460,6 +553,10 @@ onMounted(() => {
   box-shadow: 0 0 0 1px #0f9f70;
 }
 
+.edit-form .input-code {
+  text-transform: uppercase;
+}
+
 .error-text {
   color: #b91c1c;
   margin: 0;
@@ -582,6 +679,39 @@ onMounted(() => {
   width: 1rem;
   height: 1rem;
   color: inherit;
+}
+
+.edit-modal-footer {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.edit-modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.btn-delete-product {
+  color: #b91c1c !important;
+  background: #fff !important;
+  border: 1px solid #fecaca !important;
+}
+
+.btn-delete-product:hover:not(:disabled) {
+  background: #fef2f2 !important;
+  border-color: #f87171 !important;
+}
+
+.btn-delete-product:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 640px) {

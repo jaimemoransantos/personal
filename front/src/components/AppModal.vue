@@ -208,6 +208,59 @@ function close() {
   outline: none;
 }
 
+.modal-footer :deep(.modal-btn-primary:disabled),
+.modal-footer :deep(.modal-btn-primary[disabled]) {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #94a3b8;
+  color: #f8fafc;
+}
+
+.modal-footer :deep(.modal-btn-primary:disabled:hover),
+.modal-footer :deep(.modal-btn-primary[disabled]:hover),
+.modal-footer :deep(.modal-btn-primary:disabled:focus-visible),
+.modal-footer :deep(.modal-btn-primary[disabled]:focus-visible) {
+  background: #94a3b8;
+  outline: none;
+}
+
+.modal-footer :deep(.modal-btn-cancel:disabled),
+.modal-footer :deep(.modal-btn-cancel[disabled]) {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #e2e8f0;
+  color: #94a3b8;
+}
+
+.modal-footer :deep(.modal-btn-cancel:disabled:hover),
+.modal-footer :deep(.modal-btn-cancel[disabled]:hover),
+.modal-footer :deep(.modal-btn-cancel:disabled:focus-visible),
+.modal-footer :deep(.modal-btn-cancel[disabled]:focus-visible) {
+  background: #e2e8f0;
+  outline: none;
+}
+
+.modal-box--danger .modal-footer :deep(.modal-btn-primary:disabled),
+.modal-box--danger .modal-footer :deep(.modal-btn-primary[disabled]) {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #fca5a5;
+  color: #fff;
+  border-color: #f87171;
+}
+
+.modal-box--danger .modal-footer :deep(.modal-btn-primary:disabled:hover),
+.modal-box--danger .modal-footer :deep(.modal-btn-primary[disabled]:hover),
+.modal-box--danger .modal-footer :deep(.modal-btn-primary:disabled:focus-visible),
+.modal-box--danger .modal-footer :deep(.modal-btn-primary[disabled]:focus-visible) {
+  background: #fca5a5;
+  border-color: #f87171;
+  outline: none;
+}
+
 .modal-fade-enter-active,
 .modal-fade-leave-active {
   transition: opacity 0.2s ease;
