@@ -1,10 +1,14 @@
 import { db } from "../config/firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type { Quote, CreateQuoteData, QuoteClient } from "../types/quote";
+import type { Project } from "../types/project";
 import { ApiError } from "../utils/errors";
+import { buildQuotationSnapshot } from "../utils/quotationProducts";
 import { CustomerService } from "./customerService";
+import { ProjectService } from "./projectService";
 
 const QUOTES_COLLECTION = "quotes";
+const PROJECTS_COLLECTION = "projects";
 const QUOTE_COUNTERS_COLLECTION = "quoteCounters";
 
 function round2(n: number): number {
@@ -262,7 +266,27 @@ export class QuoteService {
     }
     await ref.update(updatePayload);
     const updated = await ref.get();
-    return { id: updated.id, ...updated.data() } as Quote & { id: string };
+    const quote = { id: updated.id, ...updated.data() } as Quote & {
+      id: string;
+    };
+
+    const projectId =
+      typeof quote.projectId === "string" && quote.projectId.trim()
+        ? quote.projectId.trim()
+        : typeof existing.projectId === "string" && existing.projectId.trim()
+          ? existing.projectId.trim()
+          : null;
+
+    if (projectId) {
+      const snapshot = buildQuotationSnapshot(quote);
+      await ProjectService.syncQuotationSnapshot(
+        organizationId,
+        projectId,
+        snapshot,
+      );
+    }
+
+    return quote;
   }
 
   static async delete(organizationId: string, quoteId: string): Promise<void> {
@@ -276,5 +300,176 @@ export class QuoteService {
       throw new ApiError(404, "Cotización no encontrada");
     }
     await ref.delete();
+  }
+
+  /**
+   * Convierte una cotización aceptada en un proyecto.
+   * Crea el proyecto y marca la cotización de forma atómica.
+   */
+  static async convertToProject(
+    organizationId: string,
+    quoteId: string,
+    createdBy?: string,
+  ): Promise<Project & { id: string }> {
+    const quoteRef = db.collection(QUOTES_COLLECTION).doc(quoteId);
+    const projectRef = db.collection(PROJECTS_COLLECTION).doc();
+
+    return db.runTransaction(async (tx) => {
+      const quoteDoc = await tx.get(quoteRef);
+      if (!quoteDoc.exists) {
+        throw new ApiError(404, "Cotización no encontrada");
+      }
+      const quote = quoteDoc.data() as Quote & { organizationId?: string };
+      if (quote?.organizationId !== organizationId) {
+        throw new ApiError(404, "Cotización no encontrada");
+      }
+      if (quote.status !== "accepted") {
+        throw new ApiError(
+          400,
+          "Solo se puede convertir una cotización aceptada",
+        );
+      }
+      if (quote.projectId) {
+        throw new ApiError(
+          400,
+          `Esta cotización ya fue convertida a un proyecto (${quote.projectId})`,
+        );
+      }
+
+      const now = Timestamp.now();
+      const quotationSnapshot = buildQuotationSnapshot(quote);
+      const name = `Proyecto ${quote.client?.name ?? quote.quoteNumber ?? quoteId}`;
+
+      const project: Omit<Project, "id"> = {
+        organizationId,
+        quotationId: quoteId,
+        quotationSnapshot,
+        name,
+        status: "planificado",
+        elements: [],
+        createdAt: now,
+        updatedAt: now,
+        ...(createdBy ? { createdBy } : {}),
+      };
+
+      tx.set(projectRef, project);
+      tx.update(quoteRef, {
+        projectId: projectRef.id,
+        convertedAt: now,
+        updatedAt: now,
+      });
+
+      return { id: projectRef.id, ...project } as Project & { id: string };
+    });
+  }
+
+  /**
+   * Monto por cobrar (calculado en el frontend sobre GET /api/quotes):
+   *
+   *   por_cobrar_de_una_cotización =
+   *     (status === "accepted" && !writtenOff)
+   *       ? max(0, amount - paidAmount)
+   *       : 0
+   */
+
+  static async updatePaidAmount(
+    organizationId: string,
+    quoteId: string,
+    paidAmount: number,
+  ): Promise<Quote & { id: string }> {
+    const value = round2(Number(paidAmount));
+    if (!Number.isFinite(value) || value < 0) {
+      throw new ApiError(400, "El monto pagado debe ser mayor o igual a 0");
+    }
+
+    const ref = db.collection(QUOTES_COLLECTION).doc(quoteId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new ApiError(404, "Cotización no encontrada");
+    }
+    const existing = doc.data() as Quote & { organizationId?: string };
+    if (existing?.organizationId !== organizationId) {
+      throw new ApiError(404, "Cotización no encontrada");
+    }
+
+    const amount =
+      typeof existing.amount === "number" && Number.isFinite(existing.amount)
+        ? existing.amount
+        : 0;
+    if (value > amount) {
+      throw new ApiError(
+        400,
+        "El monto pagado no puede superar el total de la cotización",
+      );
+    }
+
+    await ref.update({
+      paidAmount: value,
+      updatedAt: Timestamp.now(),
+    });
+    const updated = await ref.get();
+    return { id: updated.id, ...updated.data() } as Quote & { id: string };
+  }
+
+  static async writeOff(
+    organizationId: string,
+    quoteId: string,
+    reason?: string,
+  ): Promise<Quote & { id: string }> {
+    const ref = db.collection(QUOTES_COLLECTION).doc(quoteId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new ApiError(404, "Cotización no encontrada");
+    }
+    const existing = doc.data() as Quote & { organizationId?: string };
+    if (existing?.organizationId !== organizationId) {
+      throw new ApiError(404, "Cotización no encontrada");
+    }
+    if (existing.status !== "accepted") {
+      throw new ApiError(
+        400,
+        "Solo se puede dar de baja una cotización aceptada",
+      );
+    }
+
+    const now = Timestamp.now();
+    const trimmedReason =
+      typeof reason === "string" && reason.trim() ? reason.trim() : null;
+
+    await ref.update({
+      writtenOff: true,
+      writtenOffAt: now,
+      writtenOffReason: trimmedReason,
+      updatedAt: now,
+    });
+    const updated = await ref.get();
+    return { id: updated.id, ...updated.data() } as Quote & { id: string };
+  }
+
+  static async undoWriteOff(
+    organizationId: string,
+    quoteId: string,
+  ): Promise<Quote & { id: string }> {
+    const ref = db.collection(QUOTES_COLLECTION).doc(quoteId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      throw new ApiError(404, "Cotización no encontrada");
+    }
+    const existing = doc.data() as Quote & { organizationId?: string };
+    if (existing?.organizationId !== organizationId) {
+      throw new ApiError(404, "Cotización no encontrada");
+    }
+    if (!existing.writtenOff) {
+      throw new ApiError(400, "Esta cotización no está dada de baja");
+    }
+
+    await ref.update({
+      writtenOff: false,
+      writtenOffAt: FieldValue.delete(),
+      writtenOffReason: FieldValue.delete(),
+      updatedAt: Timestamp.now(),
+    });
+    const updated = await ref.get();
+    return { id: updated.id, ...updated.data() } as Quote & { id: string };
   }
 }

@@ -5,6 +5,12 @@ import organizationRoutes from "./routes/organizationRoutes";
 import customerRoutes from "./routes/customerRoutes";
 import productRoutes from "./routes/productRoutes";
 import quoteRoutes from "./routes/quoteRoutes";
+import designRoutes from "./routes/designRoutes";
+import projectRoutes from "./routes/projectRoutes";
+import costItemRoutes from "./routes/costItemRoutes";
+import rollRoutes from "./routes/rollRoutes";
+import unitStockRoutes from "./routes/unitStockRoutes";
+import projectPhotoRoutes from "./routes/projectPhotoRoutes";
 import { handleError } from "./utils/errors";
 import { authenticate } from "./middleware/auth";
 
@@ -27,6 +33,12 @@ app.use("/api/organization", organizationRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/quotes", quoteRoutes);
+app.use("/api/designs", designRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/cost-items", costItemRoutes);
+app.use("/api/rolls", rollRoutes);
+app.use("/api/unit-stock", unitStockRoutes);
+app.use("/api/project-photos", projectPhotoRoutes);
 
 // 404 handler
 app.use((req, res) => {

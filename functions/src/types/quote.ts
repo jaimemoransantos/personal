@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase-admin/firestore";
+
 /**
  * Quote line item (product row in the quote).
  */
@@ -61,6 +63,16 @@ export interface Quote {
   paymentMethod?: string;
   disclaimer?: string;
   notes?: string;
+  /** Set when the quote is converted to a project. */
+  projectId?: string;
+  /** When the quote was converted to a project. */
+  convertedAt?: unknown;
+  /** Acumulado manual de pagos recibidos (solo relevante si status === "accepted"). Default 0. */
+  paidAmount?: number;
+  /** Cotización dada de baja (no cuenta en por cobrar). Default false. */
+  writtenOff?: boolean;
+  writtenOffAt?: Timestamp;
+  writtenOffReason?: string | null;
   createdAt?: unknown;
   updatedAt?: unknown;
   createdBy?: string;

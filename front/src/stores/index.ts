@@ -10,7 +10,7 @@ import {
   indexedDBLocalPersistence,
   getIdToken,
 } from "firebase/auth";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { defineStore } from "pinia";
 import { auth } from "../firebase/config";
 import { useApi } from "../composables/useApi";
@@ -24,12 +24,15 @@ import { useOrganizationStore } from "./organization";
 export const isDevAuthBypass =
   import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
 
+export type UserRole = "admin" | "chief" | "technician";
+
 /** Profile from Firestore (users collection). Used for displayName/photoURL when set in DB. */
 export interface UserProfile {
   displayName?: string | null;
   photoURL?: string | null;
   email?: string;
   organizationId?: string;
+  role?: UserRole;
 }
 
 export const useUserStore = defineStore("user", () => {
@@ -40,6 +43,11 @@ export const useUserStore = defineStore("user", () => {
   const error = ref<string | null>(null);
   /** true when Firebase Auth has resolved initial auth state (valid session or not) */
   const authReady = ref(false);
+  /**
+   * true until Firestore profile (incl. role) is resolved for the current session.
+   * Starts true so the first paint never evaluates role as missing.
+   */
+  const profileLoading = ref(true);
   const isAuthenticated = computed(
     () => user.value !== null || isDevAuthBypass,
   );
@@ -53,6 +61,18 @@ export const useUserStore = defineStore("user", () => {
 
   /** Photo URL: Firestore first, then Auth */
   const photoURL = computed(() => profile.value?.photoURL ?? user.value?.photoURL ?? null);
+
+  /** True when the Firestore profile has role "admin" */
+  const isAdmin = computed(() => profile.value?.role === "admin");
+
+  /** Current role from Firestore profile (undefined until profile loads). */
+  const role = computed(() => profile.value?.role);
+
+  /** True for field roles (jefe de obra / técnico) */
+  const isFieldRole = computed(
+    () =>
+      profile.value?.role === "chief" || profile.value?.role === "technician",
+  );
 
   // Sync user profile to Firestore (after Firebase Auth authentication)
   const syncUserProfile = async (firebaseUser: User) => {
@@ -100,6 +120,35 @@ export const useUserStore = defineStore("user", () => {
     }
   };
 
+  /** Resolves when Firebase Auth has finished the initial session restore. */
+  const waitForAuth = (): Promise<void> => {
+    if (authReady.value) return Promise.resolve();
+    return new Promise((resolve) => {
+      const stop = watch(authReady, (ready) => {
+        if (ready) {
+          stop();
+          resolve();
+        }
+      });
+    });
+  };
+
+  /**
+   * Resolves when profileLoading is false (role is reliable, or no session).
+   * Router guards must await this before any isAdmin/isFieldRole decision.
+   */
+  const waitForProfile = (): Promise<void> => {
+    if (!profileLoading.value) return Promise.resolve();
+    return new Promise((resolve) => {
+      const stop = watch(profileLoading, (loading) => {
+        if (!loading) {
+          stop();
+          resolve();
+        }
+      });
+    });
+  };
+
   /** Interval for proactive token refresh (ID token lasts ~1h). Cleared on logout. */
   let tokenRefreshIntervalId: ReturnType<typeof setInterval> | null = null;
   const TOKEN_REFRESH_MINUTES = 50;
@@ -107,6 +156,7 @@ export const useUserStore = defineStore("user", () => {
   const initAuth = () => {
     if (isDevAuthBypass) {
       authReady.value = true;
+      profileLoading.value = false;
       profile.value = {
         displayName: "Dev (sin login)",
         email: "dev@local",
@@ -124,7 +174,10 @@ export const useUserStore = defineStore("user", () => {
     // Firebase calls the callback at least once (state from persistence).
     // Fallback if it takes too long (e.g. PWA reopened, iOS): do not block more than 2s.
     const fallbackTimer = window.setTimeout(() => {
-      if (!authReady.value) authReady.value = true;
+      if (!authReady.value) {
+        authReady.value = true;
+        if (!user.value) profileLoading.value = false;
+      }
     }, 2000);
 
     onAuthStateChanged(auth, (firebaseUser: User | null) => {
@@ -141,23 +194,37 @@ export const useUserStore = defineStore("user", () => {
           profile.value = null;
           useQuoteDraftStore().clearDraft();
         }
-      } else {
-        // Proactive refresh so the ID token rarely expires before the next API call
-        tokenRefreshIntervalId = setInterval(() => {
-          const current = auth.currentUser;
-          if (current) getIdToken(current, true).catch((err) => console.warn("Token refresh failed:", err));
-        }, TOKEN_REFRESH_MINUTES * 60 * 1000);
+        profileLoading.value = false;
+        authReady.value = true;
+        loading.value = false;
+        return;
       }
 
+      // New session (or user switch): clear previous profile and block UI until role is known.
+      profile.value = null;
+      profileLoading.value = true;
       authReady.value = true;
       loading.value = false;
-      if (firebaseUser) {
-        // Load profile from Firestore immediately so displayName/photoURL from DB are available (e.g. "Hola, Jaime Morán")
-        fetchProfile();
-        syncUserProfile(firebaseUser).catch((err) => {
-          console.error("Error syncing profile with Firestore:", err);
-        });
-      }
+
+      // Proactive refresh so the ID token rarely expires before the next API call
+      tokenRefreshIntervalId = setInterval(() => {
+        const current = auth.currentUser;
+        if (current)
+          getIdToken(current, true).catch((err) =>
+            console.warn("Token refresh failed:", err),
+          );
+      }, TOKEN_REFRESH_MINUTES * 60 * 1000);
+
+      const profilePromise = fetchProfile();
+      const syncPromise = syncUserProfile(firebaseUser).catch((err) => {
+        console.error("Error syncing profile with Firestore:", err);
+      });
+      void Promise.all([profilePromise, syncPromise]).finally(() => {
+        // Only clear if this session is still the same user
+        if (user.value?.uid === firebaseUser.uid) {
+          profileLoading.value = false;
+        }
+      });
     });
   };
 
@@ -241,11 +308,14 @@ export const useUserStore = defineStore("user", () => {
     error.value = null;
     try {
       useQuoteDraftStore().clearDraft();
-      await signOut(auth);
+      // Block UI immediately so the previous role never flashes during sign-out.
       profile.value = null;
+      profileLoading.value = true;
+      await signOut(auth);
       useOrganizationStore().clearOrganization();
     } catch (error: any) {
       error.value = (error as Error).message ?? "Error desconocido";
+      profileLoading.value = false;
     } finally {
       loading.value = false;
     }
@@ -261,12 +331,18 @@ export const useUserStore = defineStore("user", () => {
     profile,
     displayName,
     photoURL,
+    isAdmin,
+    role,
+    isFieldRole,
     loading,
     error,
     authReady,
+    profileLoading,
     isAuthenticated,
     initAuth,
     fetchProfile,
+    waitForAuth,
+    waitForProfile,
     signInWithGoogle,
     loginWithEmail,
     logout,

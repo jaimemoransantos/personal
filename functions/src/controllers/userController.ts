@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/userService";
 import { handleError } from "../utils/errors";
+import type { UserRole } from "../types/user";
 
 export class UserController {
   /**
@@ -105,6 +106,108 @@ export class UserController {
         success: true,
         message: "Perfil actualizado exitosamente",
         data: profile,
+      });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+
+  /** GET /api/users - List users in the organization (admin only). */
+  static async listUsers(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.organizationId!;
+      const users = await UserService.listByOrganization(organizationId);
+
+      res.json({
+        success: true,
+        data: users,
+      });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+
+  /** PUT /api/users/:id/role - Update a user's role (admin only). */
+  static async updateUserRole(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.organizationId!;
+      const actorUserId = req.user!.uid;
+      const { id } = req.params;
+      const { role } = req.body as { role?: UserRole };
+
+      if (!role) {
+        res.status(400).json({
+          success: false,
+          error: "Role es requerido",
+        });
+        return;
+      }
+
+      const profile = await UserService.updateRole(
+        organizationId,
+        id,
+        role,
+        actorUserId
+      );
+
+      res.json({
+        success: true,
+        message: "Rol actualizado exitosamente",
+        data: profile,
+      });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+
+  /** POST /api/users - Create a user (admin only). */
+  static async createUser(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.organizationId!;
+      const { email, password, displayName, role } = req.body as {
+        email?: string;
+        password?: string;
+        displayName?: string;
+        role?: UserRole;
+      };
+
+      if (!email || !password) {
+        res.status(400).json({
+          success: false,
+          error: "Email y password son requeridos",
+        });
+        return;
+      }
+
+      const profile = await UserService.createUserByAdmin(
+        organizationId,
+        email,
+        password,
+        displayName,
+        role
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Usuario creado exitosamente",
+        data: profile,
+      });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+
+  /** DELETE /api/users/:id - Delete a user (admin only). */
+  static async deleteUser(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.organizationId!;
+      const { id } = req.params;
+
+      await UserService.deleteUserByAdmin(organizationId, id);
+
+      res.json({
+        success: true,
+        message: "Usuario eliminado exitosamente",
       });
     } catch (error) {
       handleError(error, res);

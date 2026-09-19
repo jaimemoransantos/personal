@@ -30,6 +30,31 @@
           Rellenar datos de prueba
         </button> -->
           <button
+            v-if="isEditRoute && form.status === 'accepted'"
+            type="button"
+            class="secondary-action secondary-action--compact"
+            @click="openPaymentsModal"
+          >
+            💵 Pagos
+          </button>
+          <button
+            v-if="form.status === 'accepted' && quoteProjectId"
+            type="button"
+            class="secondary-action secondary-action--compact"
+            @click="router.push(`/proyectos/${quoteProjectId}`)"
+          >
+            Ver proyecto →
+          </button>
+          <button
+            v-else-if="form.status === 'accepted'"
+            type="button"
+            class="secondary-action secondary-action--compact"
+            :disabled="convertingToProject"
+            @click="onConvertToProject"
+          >
+            {{ convertingToProject ? "Convirtiendo…" : "Convertir a proyecto" }}
+          </button>
+          <button
             v-if="!isEditRoute"
             class="ghost-button ghost-button--danger"
             type="button"
@@ -77,62 +102,60 @@
         </div>
         <div class="card-header-row">
           <h2 class="card-title">Datos del cliente</h2>
-          <div
-            v-if="isEditRoute"
-            class="status-badge-wrap"
-            ref="statusBadgeWrapRef"
-          >
-            <button
-              type="button"
-              class="status-badge"
-              :class="`status-badge--${form.status || 'pending'}`"
-              aria-haspopup="listbox"
-              :aria-expanded="statusDropdownOpen"
-              @click="statusDropdownOpen = !statusDropdownOpen"
-            >
-              <span class="status-badge-dot" aria-hidden="true"></span>
-              {{ quoteStatusLabel }}
-              <span class="status-badge-chevron" aria-hidden="true">▼</span>
-            </button>
-            <transition name="dropdown-fade">
-              <div
-                v-show="statusDropdownOpen"
-                class="status-dropdown"
-                role="listbox"
-                @click.stop
+          <div v-if="isEditRoute" class="card-header-actions-inline">
+            <div class="status-badge-wrap" ref="statusBadgeWrapRef">
+              <button
+                type="button"
+                class="status-badge"
+                :class="`status-badge--${form.status || 'pending'}`"
+                aria-haspopup="listbox"
+                :aria-expanded="statusDropdownOpen"
+                @click="statusDropdownOpen = !statusDropdownOpen"
               >
-                <button
-                  type="button"
-                  role="option"
-                  :aria-selected="form.status === 'pending'"
-                  class="status-dropdown-option status-dropdown-option--pending"
-                  @click="setQuoteStatus('pending')"
+                <span class="status-badge-dot" aria-hidden="true"></span>
+                {{ quoteStatusLabel }}
+                <span class="status-badge-chevron" aria-hidden="true">▼</span>
+              </button>
+              <transition name="dropdown-fade">
+                <div
+                  v-show="statusDropdownOpen"
+                  class="status-dropdown"
+                  role="listbox"
+                  @click.stop
                 >
-                  <span class="status-option-dot"></span>
-                  Pendiente
-                </button>
-                <button
-                  type="button"
-                  role="option"
-                  :aria-selected="form.status === 'accepted'"
-                  class="status-dropdown-option status-dropdown-option--accepted"
-                  @click="setQuoteStatus('accepted')"
-                >
-                  <span class="status-option-dot"></span>
-                  Aceptada
-                </button>
-                <button
-                  type="button"
-                  role="option"
-                  :aria-selected="form.status === 'rejected'"
-                  class="status-dropdown-option status-dropdown-option--rejected"
-                  @click="setQuoteStatus('rejected')"
-                >
-                  <span class="status-option-dot"></span>
-                  Rechazada
-                </button>
-              </div>
-            </transition>
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="form.status === 'pending'"
+                    class="status-dropdown-option status-dropdown-option--pending"
+                    @click="setQuoteStatus('pending')"
+                  >
+                    <span class="status-option-dot"></span>
+                    Pendiente
+                  </button>
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="form.status === 'accepted'"
+                    class="status-dropdown-option status-dropdown-option--accepted"
+                    @click="setQuoteStatus('accepted')"
+                  >
+                    <span class="status-option-dot"></span>
+                    Aceptada
+                  </button>
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="form.status === 'rejected'"
+                    class="status-dropdown-option status-dropdown-option--rejected"
+                    @click="setQuoteStatus('rejected')"
+                  >
+                    <span class="status-option-dot"></span>
+                    Rechazada
+                  </button>
+                </div>
+              </transition>
+            </div>
           </div>
         </div>
       </header>
@@ -694,9 +717,14 @@
                 <span class="pdf-value">{{ form.project }}</span>
               </div>
             </section>
-            <div v-if="quoteNumber || pdfQuoteDateLabel" class="pdf-quote-number-box">
+            <div
+              v-if="quoteNumber || pdfQuoteDateLabel"
+              class="pdf-quote-number-box"
+            >
               <div v-if="quoteNumber">Nro. {{ quoteNumber }}</div>
-              <div v-if="pdfQuoteDateLabel" class="pdf-quote-date">{{ pdfQuoteDateLabel }}</div>
+              <div v-if="pdfQuoteDateLabel" class="pdf-quote-date">
+                {{ pdfQuoteDateLabel }}
+              </div>
             </div>
           </div>
 
@@ -843,6 +871,135 @@
         >
           Eliminar
         </button>
+      </template>
+    </AppModal>
+
+    <AppModal v-model="showPaymentsModal" title="Registro de pagos">
+      <div class="payments-modal">
+        <div class="payments-stats">
+          <div class="payments-stat">
+            <span class="payments-stat-label">Monto total</span>
+            <span class="payments-stat-value">{{ quoteAmountFormatted }}</span>
+          </div>
+          <div class="payments-stat">
+            <span class="payments-stat-label">Monto pagado</span>
+            <span class="payments-stat-value">{{ paidAmountFormatted }}</span>
+          </div>
+          <div class="payments-stat">
+            <span class="payments-stat-label">Pendiente por cobrar</span>
+            <span
+              class="payments-stat-value"
+              :class="{
+                'payments-stat-value--due': pendingToCollect > 0 && !writtenOff,
+                'payments-stat-value--done':
+                  pendingToCollect <= 0 || writtenOff,
+              }"
+            >
+              {{ pendingToCollectFormatted }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="!writtenOff" class="payments-abono-block">
+          <label class="field full payments-abono-field">
+            <span class="field-label">Registrar pago</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              placeholder="0.00"
+              class="payments-abono-input"
+              :value="
+                abonoAmount == null ? '' : abonoAmount === 0 ? '' : abonoAmount
+              "
+              :disabled="savingPaidAmount"
+              @input="
+                onDecimalInput($event, (v) => (abonoAmount = v ?? 0), true)
+              "
+            />
+            <span class="payments-abono-hint">
+              Monto de este abono (se suma al pagado actual).
+            </span>
+          </label>
+          <button
+            type="button"
+            class="primary-action payments-abono-btn"
+            :disabled="savingPaidAmount"
+            @click="registerAbono"
+          >
+            {{ savingPaidAmount ? "Registrando…" : "Registrar abono" }}
+          </button>
+        </div>
+
+        <div class="payments-divider" aria-hidden="true"></div>
+
+        <div class="payments-writeoff-section">
+          <h3 class="payments-writeoff-title">Estado de cobro</h3>
+          <div v-if="writtenOff" class="payments-writeoff-status">
+            <p class="payments-writeoff-text">
+              Dado de baja —
+              {{ writtenOffReason?.trim() || "sin motivo especificado" }}
+            </p>
+            <button
+              type="button"
+              class="ghost-button"
+              :disabled="undoingWriteOff"
+              @click="onUndoWriteOff"
+            >
+              {{ undoingWriteOff ? "Revirtiendo…" : "Deshacer baja" }}
+            </button>
+          </div>
+          <div v-else-if="showWriteOffConfirm" class="payments-writeoff-form">
+            <p class="payments-writeoff-help">
+              La cotización dejará de contar en montos por cobrar.
+            </p>
+            <label class="field full payments-writeoff-reason">
+              <span class="field-label">Motivo (opcional)</span>
+              <textarea
+                v-model="writeOffReasonDraft"
+                rows="3"
+                placeholder="Ej: Cliente canceló el pedido…"
+              />
+            </label>
+            <div class="payments-writeoff-actions">
+              <button
+                type="button"
+                class="modal-btn modal-btn-cancel"
+                :disabled="writingOff"
+                @click="showWriteOffConfirm = false"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                class="modal-btn modal-btn-primary modal-btn-danger"
+                :disabled="writingOff"
+                @click="confirmWriteOff"
+              >
+                {{ writingOff ? "Procesando…" : "Confirmar baja" }}
+              </button>
+            </div>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="ghost-button ghost-button--danger payments-writeoff-btn"
+            @click="showWriteOffConfirm = true"
+          >
+            Dar de baja
+          </button>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="payments-modal-footer">
+          <button
+            type="button"
+            class="modal-btn modal-btn-cancel"
+            @click="showPaymentsModal = false"
+          >
+            Cerrar
+          </button>
+        </div>
       </template>
     </AppModal>
 
@@ -1782,6 +1939,7 @@ async function loadQuoteById(id: string) {
       quoteNumber?: string;
       updatedAt?: unknown;
       customerId?: string;
+      projectId?: string;
       client?: {
         name?: string;
         document?: string;
@@ -1801,6 +1959,10 @@ async function loadQuoteById(id: string) {
         price: number;
       }[];
       discount?: number;
+      amount?: number;
+      paidAmount?: number;
+      writtenOff?: boolean;
+      writtenOffReason?: string | null;
       status?: string;
       validity?: string;
       deliveryPlace?: string;
@@ -1812,6 +1974,10 @@ async function loadQuoteById(id: string) {
     if (!q?.client || !Array.isArray(q.items)) return;
     quoteId.value = q.id ?? id;
     quoteNumber.value = q.quoteNumber ?? null;
+    quoteProjectId.value =
+      typeof q.projectId === "string" && q.projectId.trim()
+        ? q.projectId
+        : null;
     quoteUpdatedAt.value = parseQuoteUpdatedAt(q.updatedAt);
     const cid = q.customerId ?? null;
     const c = q.client;
@@ -1866,6 +2032,11 @@ async function loadQuoteById(id: string) {
     form.reference = q.client.reference ?? "";
     form.project = q.client.project ?? "";
     form.discount = Number(q.discount) ?? 0;
+    quoteAmount.value = Number(q.amount) || 0;
+    paidAmount.value = Number(q.paidAmount) || 0;
+    paidAmountSaved.value = paidAmount.value;
+    writtenOff.value = !!q.writtenOff;
+    writtenOffReason.value = q.writtenOffReason ?? null;
     form.status = (
       q.status === "accepted" || q.status === "rejected" ? q.status : "pending"
     ) as "pending" | "accepted" | "rejected";
@@ -2115,6 +2286,152 @@ const quoteId = ref<string | null>(null);
 const quoteUpdatedAt = ref<Date | null>(null);
 /** Número de cotización (ej. 2026000079); solo en modo edición. */
 const quoteNumber = ref<string | null>(null);
+/** Id del proyecto si la cotización ya fue convertida. */
+const quoteProjectId = ref<string | null>(null);
+const quoteAmount = ref(0);
+const paidAmount = ref(0);
+const paidAmountSaved = ref(0);
+const writtenOff = ref(false);
+const writtenOffReason = ref<string | null>(null);
+const savingPaidAmount = ref(false);
+const showPaymentsModal = ref(false);
+const showWriteOffConfirm = ref(false);
+const abonoAmount = ref(0);
+const writeOffReasonDraft = ref("");
+const writingOff = ref(false);
+const undoingWriteOff = ref(false);
+const convertingToProject = ref(false);
+
+const quoteAmountFormatted = computed(() => formatCurrency(quoteAmount.value));
+
+const paidAmountFormatted = computed(() =>
+  formatCurrency(Number(paidAmount.value) || 0),
+);
+
+const pendingToCollect = computed(() => {
+  if (writtenOff.value) return 0;
+  return Math.max(0, quoteAmount.value - (Number(paidAmount.value) || 0));
+});
+
+const pendingToCollectFormatted = computed(() =>
+  formatCurrency(pendingToCollect.value),
+);
+
+function openPaymentsModal() {
+  abonoAmount.value = 0;
+  showWriteOffConfirm.value = false;
+  writeOffReasonDraft.value = "";
+  showPaymentsModal.value = true;
+}
+
+async function registerAbono() {
+  if (!quoteId.value || form.status !== "accepted" || writtenOff.value) return;
+
+  const abono = Math.round((Number(abonoAmount.value) || 0) * 100) / 100;
+  if (abono <= 0) {
+    toastStore.show("Ingresa un monto de abono mayor a cero.", "error");
+    return;
+  }
+
+  const newTotal = Math.round((paidAmountSaved.value + abono) * 100) / 100;
+
+  savingPaidAmount.value = true;
+  try {
+    const res = await api.put(`/api/quotes/${quoteId.value}/paid-amount`, {
+      paidAmount: newTotal,
+    });
+    const updated = res?.data as { paidAmount?: number; amount?: number };
+    paidAmount.value = Number(updated?.paidAmount) ?? newTotal;
+    paidAmountSaved.value = paidAmount.value;
+    if (typeof updated?.amount === "number") {
+      quoteAmount.value = updated.amount;
+    }
+    abonoAmount.value = 0;
+    toastStore.show("Abono registrado.", "success");
+  } catch (err: unknown) {
+    toastStore.show(
+      err instanceof Error ? err.message : "Error al registrar el abono.",
+      "error",
+    );
+  } finally {
+    savingPaidAmount.value = false;
+  }
+}
+
+async function confirmWriteOff() {
+  if (!quoteId.value) return;
+  writingOff.value = true;
+  try {
+    const res = await api.post(`/api/quotes/${quoteId.value}/write-off`, {
+      reason: writeOffReasonDraft.value.trim() || undefined,
+    });
+    const updated = res?.data as {
+      writtenOff?: boolean;
+      writtenOffReason?: string | null;
+    };
+    writtenOff.value = !!updated?.writtenOff;
+    writtenOffReason.value = updated?.writtenOffReason ?? null;
+    showWriteOffConfirm.value = false;
+    writeOffReasonDraft.value = "";
+    toastStore.show("Cotización dada de baja.", "success");
+  } catch (err: unknown) {
+    toastStore.show(
+      err instanceof Error
+        ? err.message
+        : "Error al dar de baja la cotización.",
+      "error",
+    );
+  } finally {
+    writingOff.value = false;
+  }
+}
+
+async function onUndoWriteOff() {
+  if (!quoteId.value) return;
+  undoingWriteOff.value = true;
+  try {
+    const res = await api.post(
+      `/api/quotes/${quoteId.value}/undo-write-off`,
+      {},
+    );
+    const updated = res?.data as { writtenOff?: boolean };
+    writtenOff.value = !!updated?.writtenOff;
+    writtenOffReason.value = null;
+    toastStore.show("Baja revertida.", "success");
+  } catch (err: unknown) {
+    toastStore.show(
+      err instanceof Error ? err.message : "Error al revertir la baja.",
+      "error",
+    );
+  } finally {
+    undoingWriteOff.value = false;
+  }
+}
+
+async function onConvertToProject() {
+  if (!quoteId.value || convertingToProject.value) return;
+  convertingToProject.value = true;
+  try {
+    const result = await api.post(
+      `/api/quotes/${quoteId.value}/convert-to-project`,
+      {},
+    );
+    const project = result?.data as { id?: string } | undefined;
+    if (!project?.id) {
+      throw new Error("No se recibió el proyecto creado.");
+    }
+    quoteProjectId.value = project.id;
+    toastStore.show("Proyecto creado correctamente.", "success");
+    router.push(`/proyectos/${project.id}`);
+  } catch (err: unknown) {
+    toastStore.show(
+      err instanceof Error ? err.message : "Error al convertir a proyecto.",
+      "error",
+    );
+  } finally {
+    convertingToProject.value = false;
+  }
+}
 
 function formatSavedAt(date: Date): string {
   const raw = new Intl.DateTimeFormat("es-EC", {
@@ -2581,7 +2898,208 @@ const onExportPdf = async () => {
   color: #991b1b;
 }
 
+.payments-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.payments-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.payments-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.payments-stat-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.payments-stat-value {
+  font-size: 1.2rem;
+  font-weight: 650;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.payments-stat-value--due {
+  color: #b91c1c;
+}
+
+.payments-stat-value--done {
+  color: #15803d;
+}
+
+.payments-abono-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.payments-abono-field {
+  margin: 0;
+}
+
+.payments-abono-input {
+  max-width: 220px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.payments-abono-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.payments-abono-btn {
+  align-self: flex-start;
+  width: auto;
+}
+
+.payments-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 0;
+}
+
+.payments-writeoff-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.payments-writeoff-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.payments-writeoff-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.payments-writeoff-text {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.payments-writeoff-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.payments-writeoff-help {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.payments-writeoff-reason {
+  margin: 0;
+}
+
+.payments-writeoff-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.payments-writeoff-btn {
+  align-self: flex-start;
+  width: auto;
+}
+
+.payments-modal-footer {
+  width: 100%;
+  padding-top: 1.25rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* Same sizing as AppModal footer buttons (for actions inside modal body) */
+.payments-modal .modal-btn,
+.payments-modal-footer .modal-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.payments-modal .modal-btn-cancel,
+.payments-modal-footer .modal-btn-cancel {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.payments-modal .modal-btn-cancel:hover,
+.payments-modal .modal-btn-cancel:focus-visible,
+.payments-modal-footer .modal-btn-cancel:hover,
+.payments-modal-footer .modal-btn-cancel:focus-visible {
+  background: #e2e8f0;
+  outline: none;
+}
+
+.payments-modal .modal-btn-primary {
+  background: #053f51;
+  color: #fff;
+}
+
+.payments-modal .modal-btn-primary:hover,
+.payments-modal .modal-btn-primary:focus-visible {
+  background: #06475b;
+  outline: none;
+}
+
+.payments-modal .modal-btn-danger {
+  background: #b91c1c;
+  color: #fff;
+  border: 1px solid #7f1d1d;
+}
+
+.payments-modal .modal-btn-danger:hover,
+.payments-modal .modal-btn-danger:focus-visible {
+  background: #991b1b;
+  border-color: #7f1d1d;
+  outline: none;
+}
+
+.payments-modal .modal-btn-primary:disabled,
+.payments-modal .modal-btn-cancel:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .card {
+  padding: 0;
   background: #ffffff;
   border-radius: 16px;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
@@ -2623,8 +3141,21 @@ const onExportPdf = async () => {
   margin-left: -0.5rem;
 }
 
-.card-header-row .status-badge-wrap {
+.card-header-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
   margin-right: -0.5rem;
+}
+
+.card-header-row .status-badge-wrap {
+  margin-right: 0;
+}
+
+.secondary-action--compact {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
 }
 
 .card-header-quote-number {
@@ -3109,6 +3640,13 @@ input[type="number"] {
 
 .icon-button:hover,
 .icon-button:focus-visible {
+  color: #334155;
+  background: #f1f5f9;
+  outline: none;
+}
+
+.icon-button-delete:hover,
+.icon-button-delete:focus-visible {
   color: #b91c1c;
   background: #fef2f2;
   outline: none;
@@ -3243,7 +3781,7 @@ input[type="number"] {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  box-shadow: 0 10px 22px rgba(15, 159, 112, 0.32);
+  box-shadow: 0 4px 18px rgba(15, 159, 112, 0.32);
   transition:
     background 0.2s ease,
     box-shadow 0.2s ease,
@@ -3252,7 +3790,7 @@ input[type="number"] {
 
 .primary-action:hover:not(:disabled) {
   background: #0c7a57;
-  box-shadow: 0 12px 26px rgba(15, 159, 112, 0.42);
+  box-shadow: 0 8px 26px rgba(15, 159, 112, 0.42);
   transform: translateY(-1px);
 }
 
@@ -3260,7 +3798,7 @@ input[type="number"] {
   outline: none;
   box-shadow:
     0 0 0 3px rgba(15, 159, 112, 0.25),
-    0 10px 22px rgba(15, 159, 112, 0.32);
+    0 8px 18px rgba(15, 159, 112, 0.32);
 }
 
 .primary-action:disabled {
@@ -3536,6 +4074,20 @@ input[type="number"] {
 .pdf-footer {
   position: relative;
   z-index: 1;
+}
+
+@media (max-width: 860px) {
+  .card-header {
+    padding: 1rem 1rem 0 1rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .payments-stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {

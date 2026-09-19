@@ -64,4 +64,65 @@ export class QuoteController {
       handleError(error, res);
     }
   }
+
+  static async convertToProject(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.organizationId!;
+      const userId = req.user?.uid;
+      const { id } = req.params;
+      const project = await QuoteService.convertToProject(
+        organizationId,
+        id,
+        userId,
+      );
+      res.status(201).json({ success: true, data: project });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+
+  static async updatePaidAmount(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.organizationId!;
+      const { id } = req.params;
+      const { paidAmount } = req.body as { paidAmount?: number };
+      if (paidAmount === undefined || paidAmount === null) {
+        res
+          .status(400)
+          .json({ success: false, error: "paidAmount es requerido" });
+        return;
+      }
+      const quote = await QuoteService.updatePaidAmount(
+        organizationId,
+        id,
+        paidAmount,
+      );
+      res.json({ success: true, data: quote });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+
+  static async writeOff(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.organizationId!;
+      const { id } = req.params;
+      const { reason } = req.body as { reason?: string };
+      const quote = await QuoteService.writeOff(organizationId, id, reason);
+      res.json({ success: true, data: quote });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
+
+  static async undoWriteOff(req: Request, res: Response): Promise<void> {
+    try {
+      const organizationId = req.organizationId!;
+      const { id } = req.params;
+      const quote = await QuoteService.undoWriteOff(organizationId, id);
+      res.json({ success: true, data: quote });
+    } catch (error) {
+      handleError(error, res);
+    }
+  }
 }

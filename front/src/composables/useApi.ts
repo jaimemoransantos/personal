@@ -141,7 +141,18 @@ export const useApi = () => {
         body: JSON.stringify(data),
       }),
 
-    // DELETE
-    delete: (endpoint: string) => apiCall(endpoint, { method: "DELETE" }),
+    // PATCH
+    patch: (endpoint: string, data: any) =>
+      apiCall(endpoint, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+
+    // DELETE (optional body, e.g. removeFactura with { url })
+    delete: (endpoint: string, data?: unknown) =>
+      apiCall(endpoint, {
+        method: "DELETE",
+        ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
+      }),
   };
 };

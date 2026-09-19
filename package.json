@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "cd functions && npm run serve & cd front && npm run dev",
-    "deploy": "cd front && npm run build && cd ../functions && npm run build && cd .. && firebase deploy --only functions,hosting"
+    "deploy": "cd front && npm run build && cd ../functions && npm run build && cd .. && firebase deploy --only functions,hosting",
+    "deploy:hosting": "cd front && npm run build && firebase deploy --only hosting",
+    "deploy:functions": "cd functions && npm run build && firebase deploy --only functions"
   }
 }
-

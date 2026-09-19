@@ -5,6 +5,9 @@ const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
 if (!admin.apps.length) {
   admin.initializeApp({
     projectId: "personal-67927",
+    // Requerido para admin.storage().bucket() sin argumentos
+    // (mismo bucket que VITE_FIREBASE_STORAGE_BUCKET en el front).
+    storageBucket: "personal-67927.firebasestorage.app",
   });
 
   if (isEmulator) {

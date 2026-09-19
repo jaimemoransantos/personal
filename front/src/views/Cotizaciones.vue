@@ -34,6 +34,52 @@
       </div>
     </header>
 
+    <div class="list-filters">
+      <div
+        class="filter-chips"
+        role="toolbar"
+        aria-label="Filtrar cotizaciones"
+      >
+        <button
+          v-for="chip in filterChips"
+          :key="chip.id"
+          type="button"
+          class="filter-chip"
+          :class="[
+            `filter-chip--${chip.id}`,
+            { 'filter-chip--active': activeFilter === chip.id },
+          ]"
+          :aria-pressed="activeFilter === chip.id"
+          @click="setFilter(chip.id)"
+        >
+          <span class="filter-chip-dot" aria-hidden="true"></span>
+          {{ chip.label }}
+        </button>
+      </div>
+      <div
+        class="segmented-control"
+        role="group"
+        aria-label="Período de cotizaciones"
+      >
+        <button
+          type="button"
+          class="segmented-option"
+          :class="{ active: activePeriod === 'month' }"
+          @click="setPeriod('month')"
+        >
+          Este mes
+        </button>
+        <button
+          type="button"
+          class="segmented-option"
+          :class="{ active: activePeriod === 'all' }"
+          @click="setPeriod('all')"
+        >
+          Histórico
+        </button>
+      </div>
+    </div>
+
     <section class="list-section">
       <div v-if="quotesLoading" class="list-empty">
         <p>Cargando cotizaciones...</p>
@@ -47,14 +93,20 @@
       <div v-else-if="filteredQuotes.length === 0" class="list-empty">
         <p>
           {{
-            searchQuery.trim()
-              ? "No hay cotizaciones que coincidan con la búsqueda."
+            searchQuery.trim() ||
+            activeFilter !== "all" ||
+            activePeriod !== "all"
+              ? "No hay cotizaciones que coincidan con los filtros."
               : "Aún no hay cotizaciones."
           }}
         </p>
         <button class="primary-action" @click="goToNewQuote">
           {{
-            searchQuery.trim() ? "Nueva cotización" : "Crear primera cotización"
+            searchQuery.trim() ||
+            activeFilter !== "all" ||
+            activePeriod !== "all"
+              ? "Nueva cotización"
+              : "Crear primera cotización"
           }}
         </button>
       </div>
@@ -80,102 +132,120 @@
             </p>
           </div>
           <div class="quote-meta">
-            <div class="status-badge-wrap" @click.stop>
-              <button
-                type="button"
-                class="status-badge"
-                :class="`status-badge--${quote.status}`"
-                aria-haspopup="listbox"
-                :aria-expanded="openStatusId === quote.id"
-                @click="toggleStatusDropdown(quote.id)"
-              >
-                <span class="status-badge-dot" aria-hidden="true"></span>
-                {{ quote.statusLabel }}
-                <span class="status-badge-chevron" aria-hidden="true">▼</span>
-              </button>
-              <transition name="dropdown-fade">
-                <div
-                  v-show="openStatusId === quote.id"
-                  class="status-dropdown"
-                  role="listbox"
-                >
-                  <button
-                    type="button"
-                    role="option"
-                    :aria-selected="quote.status === 'pending'"
-                    class="status-dropdown-option status-dropdown-option--pending"
-                    @click="onChangeStatus(quote, 'pending')"
-                  >
-                    <span class="status-option-dot"></span>
-                    Pendiente
-                  </button>
-                  <button
-                    type="button"
-                    role="option"
-                    :aria-selected="quote.status === 'accepted'"
-                    class="status-dropdown-option status-dropdown-option--accepted"
-                    @click="onChangeStatus(quote, 'accepted')"
-                  >
-                    <span class="status-option-dot"></span>
-                    Aceptada
-                  </button>
-                  <button
-                    type="button"
-                    role="option"
-                    :aria-selected="quote.status === 'rejected'"
-                    class="status-dropdown-option status-dropdown-option--rejected"
-                    @click="onChangeStatus(quote, 'rejected')"
-                  >
-                    <span class="status-option-dot"></span>
-                    Rechazada
-                  </button>
-                </div>
-              </transition>
-            </div>
-            <div class="quote-menu-wrap" @click.stop>
+            <div class="quote-status-row">
+              <div class="status-badge-wrap" @click.stop>
                 <button
                   type="button"
-                  class="quote-menu-btn"
-                  :aria-expanded="openMenuId === quote.id"
-                  aria-haspopup="true"
-                  aria-label="Abrir menú"
-                  @click="toggleMenu(quote.id)"
+                  class="status-badge"
+                  :class="`status-badge--${quote.status}`"
+                  aria-haspopup="listbox"
+                  :aria-expanded="openStatusId === quote.id"
+                  @click="toggleStatusDropdown(quote.id)"
                 >
-                  <span class="quote-menu-dots" aria-hidden="true">⋯</span>
+                  <span class="status-badge-dot" aria-hidden="true"></span>
+                  {{ quote.statusLabel }}
+                  <span class="status-badge-chevron" aria-hidden="true">▼</span>
                 </button>
-                <div
-                  v-if="openMenuId === quote.id"
-                  class="quote-menu-dropdown"
-                  role="menu"
-                >
-                  <button
-                    type="button"
-                    class="quote-menu-option"
-                    role="menuitem"
-                    @click="onEdit(quote)"
+                <transition name="dropdown-fade">
+                  <div
+                    v-show="openStatusId === quote.id"
+                    class="status-dropdown"
+                    role="listbox"
                   >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    class="quote-menu-option"
-                    role="menuitem"
-                    :disabled="pdfDownloading"
-                    @click="onDownloadPdf(quote)"
-                  >
-                    {{ pdfDownloading ? "Descargando…" : "Descargar PDF" }}
-                  </button>
-                  <button
-                    type="button"
-                    class="quote-menu-option quote-menu-option--danger"
-                    role="menuitem"
-                    @click="onDelete(quote)"
-                  >
-                    Eliminar
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      role="option"
+                      :aria-selected="quote.status === 'pending'"
+                      class="status-dropdown-option status-dropdown-option--pending"
+                      @click="onChangeStatus(quote, 'pending')"
+                    >
+                      <span class="status-option-dot"></span>
+                      Pendiente
+                    </button>
+                    <button
+                      type="button"
+                      role="option"
+                      :aria-selected="quote.status === 'accepted'"
+                      class="status-dropdown-option status-dropdown-option--accepted"
+                      @click="onChangeStatus(quote, 'accepted')"
+                    >
+                      <span class="status-option-dot"></span>
+                      Aceptada
+                    </button>
+                    <button
+                      type="button"
+                      role="option"
+                      :aria-selected="quote.status === 'rejected'"
+                      class="status-dropdown-option status-dropdown-option--rejected"
+                      @click="onChangeStatus(quote, 'rejected')"
+                    >
+                      <span class="status-option-dot"></span>
+                      Rechazada
+                    </button>
+                  </div>
+                </transition>
               </div>
-            <span class="quote-amount">{{ quote.amount }}</span>
+              <span v-if="quote.writtenOff" class="written-off-badge">
+                Dada de baja
+              </span>
+            </div>
+            <div class="quote-menu-wrap" @click.stop>
+              <button
+                type="button"
+                class="icon-button quote-menu-btn"
+                :aria-expanded="openMenuId === quote.id"
+                aria-haspopup="true"
+                aria-label="Abrir menú"
+                @click="toggleMenu(quote.id)"
+              >
+                <span class="quote-menu-dots" aria-hidden="true">⋯</span>
+              </button>
+              <div
+                v-if="openMenuId === quote.id"
+                class="quote-menu-dropdown"
+                role="menu"
+              >
+                <button
+                  type="button"
+                  class="quote-menu-option"
+                  role="menuitem"
+                  @click="onEdit(quote)"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  class="quote-menu-option"
+                  role="menuitem"
+                  :disabled="pdfDownloading"
+                  @click="onDownloadPdf(quote)"
+                >
+                  {{ pdfDownloading ? "Descargando…" : "Descargar PDF" }}
+                </button>
+                <button
+                  type="button"
+                  class="quote-menu-option quote-menu-option--danger"
+                  role="menuitem"
+                  @click="onDelete(quote)"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+            <div class="quote-amount-block">
+              <p
+                v-if="
+                  quote.status === 'accepted' &&
+                  !quote.writtenOff &&
+                  quote.pendienteCobro > 0
+                "
+                class="quote-balance"
+              >
+                Pagado {{ formatCurrency(quote.paidAmount) }} · Debe
+                {{ formatCurrency(quote.pendienteCobro) }}
+              </p>
+              <span class="quote-amount">{{ quote.amount }}</span>
+            </div>
           </div>
         </li>
       </ul>
@@ -228,7 +298,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import html2pdf from "html2pdf.js";
 import { useApi } from "../composables/useApi";
 import { useToastStore } from "../stores/toast";
@@ -240,6 +310,7 @@ import QuotePdfTemplate, {
 import { formatCurrency } from "../utils/format";
 
 const router = useRouter();
+const route = useRoute();
 const api = useApi();
 const toast = useToastStore();
 const organizationStore = useOrganizationStore();
@@ -336,6 +407,10 @@ type QuoteFromApi = {
   discount: number;
   amount: number;
   status?: "pending" | "accepted" | "rejected";
+  paidAmount?: number;
+  writtenOff?: boolean;
+  createdAt?: unknown;
+  updatedAt?: unknown;
 };
 
 type QuoteRow = {
@@ -348,7 +423,97 @@ type QuoteRow = {
   amount: string;
   status: string;
   statusLabel: string;
+  paidAmount: number;
+  writtenOff: boolean;
+  pendienteCobro: number;
+  createdAt: Date | null;
 };
+
+type QuoteFilterId =
+  | "all"
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "por-cobrar"
+  | "dadas-de-baja";
+
+type QuotePeriod = "month" | "all";
+
+const VALID_FILTERS: readonly QuoteFilterId[] = [
+  "all",
+  "pending",
+  "accepted",
+  "rejected",
+  "por-cobrar",
+  "dadas-de-baja",
+];
+
+const filterChips: { id: QuoteFilterId; label: string }[] = [
+  { id: "all", label: "Todas" },
+  { id: "accepted", label: "Aceptadas" },
+  { id: "pending", label: "Pendientes" },
+  { id: "rejected", label: "Rechazadas" },
+  { id: "por-cobrar", label: "Por cobrar" },
+  { id: "dadas-de-baja", label: "Dadas de baja" },
+];
+
+function isValidFilter(value: unknown): value is QuoteFilterId {
+  return (
+    typeof value === "string" &&
+    (VALID_FILTERS as readonly string[]).includes(value)
+  );
+}
+
+function isValidPeriod(value: unknown): value is QuotePeriod {
+  return value === "month" || value === "all";
+}
+
+const initialQueryFilter = route.query.filter;
+const activeFilter = ref<string>(
+  isValidFilter(initialQueryFilter) ? initialQueryFilter : "all",
+);
+
+const initialQueryPeriod = route.query.period;
+const activePeriod = ref<QuotePeriod>(
+  isValidPeriod(initialQueryPeriod) ? initialQueryPeriod : "all",
+);
+
+function setFilter(filterId: QuoteFilterId) {
+  if (activeFilter.value === filterId) return;
+  activeFilter.value = filterId;
+  router.replace({
+    query: { ...route.query, filter: filterId },
+  });
+}
+
+function setPeriod(period: QuotePeriod) {
+  if (activePeriod.value === period) return;
+  activePeriod.value = period;
+  router.replace({
+    query: { ...route.query, period },
+  });
+}
+
+function parseDate(raw: unknown): Date | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof raw === "object" && raw !== null) {
+    const sec =
+      (raw as { seconds?: number; _seconds?: number }).seconds ??
+      (raw as { seconds?: number; _seconds?: number })._seconds;
+    if (typeof sec === "number") return new Date(sec * 1000);
+  }
+  return null;
+}
+
+function isInCurrentMonth(d: Date, now: Date): boolean {
+  return (
+    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  );
+}
 
 function totalFromQuote(q: QuoteFromApi): number {
   return q.amount;
@@ -367,6 +532,13 @@ function mapQuoteToRow(q: QuoteFromApi): QuoteRow {
   const title = ref || proj || `Cotización - ${q.client?.name ?? "Sin nombre"}`;
   const status =
     q.status && QUOTE_STATUS_LABELS[q.status] ? q.status : "pending";
+  const paidAmount =
+    typeof q.paidAmount === "number" && Number.isFinite(q.paidAmount)
+      ? q.paidAmount
+      : 0;
+  const writtenOff = Boolean(q.writtenOff);
+  const pendienteCobro =
+    status === "accepted" && !writtenOff ? Math.max(0, total - paidAmount) : 0;
   return {
     id: q.id,
     quoteNumber: q.quoteNumber ?? "",
@@ -377,6 +549,10 @@ function mapQuoteToRow(q: QuoteFromApi): QuoteRow {
     amount: formatCurrency(total),
     status,
     statusLabel: QUOTE_STATUS_LABELS[status] ?? "Pendiente",
+    paidAmount,
+    writtenOff,
+    pendienteCobro,
+    createdAt: parseDate(q.createdAt) ?? parseDate(q.updatedAt),
   };
 }
 
@@ -404,16 +580,49 @@ const goToNewQuote = () => {
 };
 
 const filteredQuotes = computed(() => {
+  let list = quotes.value;
+
+  switch (activeFilter.value) {
+    case "pending":
+      list = list.filter((q) => q.status === "pending");
+      break;
+    case "accepted":
+      list = list.filter((q) => q.status === "accepted");
+      break;
+    case "rejected":
+      list = list.filter((q) => q.status === "rejected");
+      break;
+    case "por-cobrar":
+      list = list.filter((q) => q.pendienteCobro > 0);
+      break;
+    case "dadas-de-baja":
+      list = list.filter((q) => q.writtenOff === true);
+      break;
+    default:
+      break;
+  }
+
   const q = searchQuery.value.trim().toLowerCase();
-  if (!q) return quotes.value;
-  return quotes.value.filter(
-    (quote) =>
-      (quote.quoteNumber && quote.quoteNumber.toLowerCase().includes(q)) ||
-      quote.title.toLowerCase().includes(q) ||
-      quote.client.toLowerCase().includes(q) ||
-      quote.reference.toLowerCase().includes(q) ||
-      quote.project.toLowerCase().includes(q),
-  );
+  if (q) {
+    list = list.filter(
+      (quote) =>
+        (quote.quoteNumber && quote.quoteNumber.toLowerCase().includes(q)) ||
+        quote.title.toLowerCase().includes(q) ||
+        quote.client.toLowerCase().includes(q) ||
+        quote.reference.toLowerCase().includes(q) ||
+        quote.project.toLowerCase().includes(q),
+    );
+  }
+
+  if (activePeriod.value === "month") {
+    const now = new Date();
+    list = list.filter(
+      (quote) =>
+        quote.createdAt != null && isInCurrentMonth(quote.createdAt, now),
+    );
+  }
+
+  return list;
 });
 
 const openQuote = (quote: QuoteRow) => {
@@ -467,12 +676,11 @@ async function onChangeStatus(
   } catch (err: any) {
     // Revert on error
     quotes.value = quotes.value.map((q) =>
-      q.id === quote.id ? { ...q, status: oldStatus, statusLabel: oldLabel } : q,
+      q.id === quote.id
+        ? { ...q, status: oldStatus, statusLabel: oldLabel }
+        : q,
     );
-    toast.show(
-      err?.message ?? "No se pudo actualizar el estado.",
-      "error",
-    );
+    toast.show(err?.message ?? "No se pudo actualizar el estado.", "error");
   }
 }
 
@@ -736,6 +944,167 @@ onUnmounted(() => {
   color: #b8c4d4;
 }
 
+.list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.segmented-control {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: #eef2f6;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.segmented-option {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.segmented-option:focus-visible {
+  box-shadow: 0 0 0 2px rgba(5, 63, 81, 0.35);
+}
+
+.segmented-option.active {
+  background: #ffffff;
+  color: #053f51;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.segmented-option.active:focus-visible {
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.12),
+    0 0 0 2px rgba(5, 63, 81, 0.35);
+}
+
+.segmented-option:hover:not(.active) {
+  color: #334155;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.filter-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.filter-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.filter-chip--all .filter-chip-dot {
+  background: #94a3b8;
+}
+
+.filter-chip--pending .filter-chip-dot {
+  background: #b45309;
+}
+
+.filter-chip--accepted .filter-chip-dot {
+  background: #15803d;
+}
+
+.filter-chip--rejected .filter-chip-dot {
+  background: #b91c1c;
+}
+
+/* Same orange as Dashboard KPI "Por cobrar" (.kpi-icon-receivable) */
+.filter-chip--por-cobrar .filter-chip-dot {
+  background: #ea580c;
+}
+
+.filter-chip--dadas-de-baja .filter-chip-dot {
+  background: #475569;
+}
+
+.filter-chip--active {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filter-chip--all.filter-chip--active {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.filter-chip--pending.filter-chip--active {
+  background: rgba(234, 179, 8, 0.2);
+  color: #b45309;
+  border-color: rgba(234, 179, 8, 0.55);
+}
+
+.filter-chip--accepted.filter-chip--active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+.filter-chip--rejected.filter-chip--active {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.filter-chip--por-cobrar.filter-chip--active {
+  background: rgba(249, 115, 22, 0.14);
+  color: #c2410c;
+  border-color: rgba(249, 115, 22, 0.45);
+}
+
+.filter-chip--dadas-de-baja.filter-chip--active {
+  background: #e2e8f0;
+  color: #334155;
+  border-color: #94a3b8;
+}
+
 .primary-action {
   padding: 0.65rem 1.25rem;
   border-radius: 8px;
@@ -860,35 +1229,34 @@ onUnmounted(() => {
 
 .quote-menu-wrap {
   position: relative;
-  opacity: 0;
-  transition: opacity 0.15s ease;
 }
 
-.quote-item:hover .quote-menu-wrap,
-.quote-item.menu-open .quote-menu-wrap {
-  opacity: 1;
-}
-
-.quote-menu-btn {
+.icon-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.35rem;
+  border-radius: 6px;
+  color: #64748b;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #64748b;
-  cursor: pointer;
   transition:
-    background 0.15s ease,
-    color 0.15s ease;
+    color 0.15s,
+    background 0.15s;
 }
 
-.quote-menu-btn:hover {
-  background: #f1f5f9;
+.icon-button:hover,
+.icon-button:focus-visible {
   color: #334155;
+  background: #f1f5f9;
+  outline: none;
+}
+
+.quote-menu-btn {
+  min-width: 1.75rem;
+  min-height: 1.75rem;
 }
 
 .quote-menu-dots {
@@ -934,10 +1302,47 @@ onUnmounted(() => {
   color: #b91c1c;
 }
 
+.quote-amount-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.quote-balance {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ea580c;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .quote-amount {
   font-size: 1rem;
   font-weight: 600;
   color: #053f51;
+}
+
+.quote-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.written-off-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
 }
 
 /* Status badge / dropdown – same look as Edit view */

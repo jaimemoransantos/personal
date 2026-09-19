@@ -41,6 +41,19 @@
             <span v-else class="btn-spinner" aria-hidden="true"></span>
             {{ loading ? "Cargando…" : "Actualizar" }}
           </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            :disabled="loading || exportingExcel || filteredCustomers.length === 0"
+            @click="downloadExcel"
+          >
+            <span
+              v-if="exportingExcel"
+              class="btn-spinner"
+              aria-hidden="true"
+            ></span>
+            {{ exportingExcel ? "Descargando…" : "Descargar Excel" }}
+          </button>
           <!-- <label
             class="btn-primary file-label"
             :class="{ 'file-label--uploading': uploadingExcel }"
@@ -108,29 +121,29 @@
           <div class="data-side">
             <button
               type="button"
-              class="btn-edit"
+              class="icon-button"
+              aria-label="Editar cliente"
               title="Editar"
               @click="openEditModal(customer)"
             >
-              <span class="btn-edit-icon" aria-hidden="true">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path
-                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                  />
-                  <path
-                    d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                  />
-                </svg>
-              </span>
-              Editar
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                />
+                <path
+                  d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                />
+              </svg>
             </button>
           </div>
         </li>
@@ -256,8 +269,23 @@ const api = useApi();
 const toast = useToastStore();
 const customers = ref<Customer[]>([]);
 const loading = ref(false);
+const exportingExcel = ref(false);
 const error = ref<string | null>(null);
 const searchQuery = ref("");
+
+type CustomerFieldKey = "name" | "document" | "phone" | "email" | "address";
+
+const CUSTOMER_EXPORT_COLUMNS: {
+  key: CustomerFieldKey;
+  header: string;
+  always?: boolean;
+}[] = [
+  { key: "name", header: "Razón Social", always: true },
+  { key: "document", header: "Cédula o RUC" },
+  { key: "phone", header: "Teléfonos" },
+  { key: "email", header: "Email" },
+  { key: "address", header: "Dirección" },
+];
 
 const showEditModal = ref(false);
 const editingCustomerId = ref<string | null>(null);
@@ -360,6 +388,86 @@ const filteredCustomers = computed(() => {
       (c.address && c.address.toLowerCase().includes(q)),
   );
 });
+
+function hasFieldValue(value: string | undefined | null): boolean {
+  return Boolean(value && String(value).trim());
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function downloadExcel() {
+  const list = filteredCustomers.value;
+  if (list.length === 0 || exportingExcel.value) return;
+
+  exportingExcel.value = true;
+  try {
+    const columns = CUSTOMER_EXPORT_COLUMNS.filter(
+      (col) =>
+        col.always || list.some((c) => hasFieldValue(c[col.key])),
+    );
+
+    const headerCells = columns
+      .map(
+        (col) =>
+          `<Cell><Data ss:Type="String">${escapeXml(col.header)}</Data></Cell>`,
+      )
+      .join("");
+
+    const bodyRows = list
+      .map((customer) => {
+        const cells = columns
+          .map((col) => {
+            const raw = customer[col.key];
+            if (!hasFieldValue(raw)) {
+              return "<Cell/>";
+            }
+            return `<Cell><Data ss:Type="String">${escapeXml(String(raw).trim())}</Data></Cell>`;
+          })
+          .join("");
+        return `<Row>${cells}</Row>`;
+      })
+      .join("");
+
+    const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="Clientes">
+  <Table>
+   <Row>${headerCells}</Row>
+   ${bodyRows}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+    const blob = new Blob([xml], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `clientes-${date}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.show("Excel descargado.", "success");
+  } catch (e) {
+    const message =
+      e instanceof Error ? e.message : "Error al descargar el Excel";
+    toast.show(message, "error");
+  } finally {
+    exportingExcel.value = false;
+  }
+}
 
 async function fetchCustomers() {
   loading.value = true;
@@ -635,38 +743,27 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.btn-edit {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.65rem;
-  font-size: 0.85rem;
-  color: #053f51;
-  background: #f0fdf4;
-  border: 1px solid #0f9f70;
-  border-radius: 8px;
+.icon-button {
+  border: none;
+  background: transparent;
   cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s;
-}
-
-.btn-edit-icon {
+  font-size: 1rem;
+  padding: 0.35rem;
+  border-radius: 6px;
+  color: #64748b;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
-.btn-edit-icon svg {
-  width: 1rem;
-  height: 1rem;
-  color: inherit;
-}
-
-.btn-edit:hover {
-  background: #dcfce7;
-  border-color: #0c7a57;
+.icon-button:hover,
+.icon-button:focus-visible {
+  color: #334155;
+  background: #f1f5f9;
+  outline: none;
 }
 
 .edit-form {

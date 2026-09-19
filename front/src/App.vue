@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from "vue";
+import { computed, onMounted, watch } from "vue";
 import { useUserStore } from "./stores/index";
 import { useToastStore } from "./stores/toast";
 import AppLoader from "./components/AppLoader.vue";
@@ -8,38 +8,84 @@ import router from "./router";
 const userStore = useUserStore();
 const toastStore = useToastStore();
 
+/** Hide all routes until auth is ready and (if logged in) role is known. */
+const showBootLoader = computed(
+  () =>
+    !userStore.authReady ||
+    (userStore.isAuthenticated && userStore.profileLoading),
+);
+
 onMounted(() => {
   userStore.initAuth();
 });
 
-// When auth is ready: redirect only if current route does not match session state
+// When session + profile are ready: redirect only if current route does not match
 watch(
-  () => userStore.authReady,
-  (ready) => {
+  () =>
+    [
+      userStore.authReady,
+      userStore.profileLoading,
+      userStore.isAuthenticated,
+    ] as const,
+  ([ready, profileLoading, isAuth]) => {
     if (!ready) return;
+    if (isAuth && profileLoading) return;
+
     router.isReady().then(() => {
       const route = router.currentRoute.value;
-      const isAuth = userStore.isAuthenticated;
+      const home = userStore.isFieldRole ? "/campo" : "/inicio";
+
       if (isAuth && route.path === "/login") {
+        toastStore.show("Inicio de sesión correcto. ¡Bienvenido!", "success");
         const redirect = route.query.redirect;
         const path =
           typeof redirect === "string" &&
           redirect.startsWith("/") &&
-          !redirect.startsWith("//")
+          !redirect.startsWith("//") &&
+          !(
+            userStore.isFieldRole &&
+            [
+              "/inicio",
+              "/cotizaciones",
+              "/clientes",
+              "/productos",
+              "/usuarios",
+            ].some(
+              (blocked) =>
+                redirect === blocked || redirect.startsWith(`${blocked}/`),
+            )
+          )
             ? redirect
-            : "/inicio";
+            : home;
         router.replace(path);
       } else if (!isAuth && route.meta.requiresAuth) {
         router.replace({ path: "/login", query: { redirect: route.fullPath } });
+      } else if (isAuth && route.meta.requiresAdmin && !userStore.isAdmin) {
+        router.replace(home);
+      } else if (
+        isAuth &&
+        userStore.isFieldRole &&
+        [
+          "/inicio",
+          "/cotizaciones",
+          "/clientes",
+          "/productos",
+          "/usuarios",
+        ].some(
+          (blocked) =>
+            route.path === blocked || route.path.startsWith(`${blocked}/`),
+        )
+      ) {
+        router.replace("/campo");
       }
     });
-  }
+  },
 );
 </script>
 
 <template>
   <div id="app">
-    <AppLoader v-if="!userStore.authReady" />
+    <AppLoader v-if="showBootLoader" />
 
     <template v-else>
       <router-view />

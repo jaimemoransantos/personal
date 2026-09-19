@@ -63,22 +63,38 @@ const { loading, loginWithEmail, clearError } = userStore;
 const email = ref("");
 const password = ref("");
 
-// Redirect when user becomes authenticated
+// Redirect when user becomes authenticated and profile/role is ready
 watch(
-  () => userStore.isAuthenticated,
-  (authenticated) => {
-    if (authenticated) {
-      toastStore.show("Inicio de sesión correcto. ¡Bienvenido!", "success");
-      const redirect = route.query.redirect;
-      const path =
-        typeof redirect === "string" &&
-        redirect.startsWith("/") &&
-        !redirect.startsWith("//")
-          ? redirect
-          : "/inicio";
-      router.push(path);
+  () =>
+    [userStore.isAuthenticated, userStore.profileLoading] as const,
+  async ([authenticated, profileLoading]) => {
+    if (!authenticated || profileLoading) return;
+    toastStore.show("Inicio de sesión correcto. ¡Bienvenido!", "success");
+    if (!userStore.profile) {
+      await userStore.fetchProfile();
     }
-  }
+    const redirect = route.query.redirect;
+    const home = userStore.isFieldRole ? "/campo" : "/inicio";
+    const fieldBlocked = [
+      "/inicio",
+      "/cotizaciones",
+      "/clientes",
+      "/productos",
+      "/usuarios",
+    ];
+    const redirectOk =
+      typeof redirect === "string" &&
+      redirect.startsWith("/") &&
+      !redirect.startsWith("//") &&
+      !(
+        userStore.isFieldRole &&
+        fieldBlocked.some(
+          (blocked) =>
+            redirect === blocked || redirect.startsWith(`${blocked}/`),
+        )
+      );
+    router.push(redirectOk ? redirect : home);
+  },
 );
 
 const handleEmailLogin = async () => {
